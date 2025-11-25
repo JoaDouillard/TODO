@@ -130,6 +130,7 @@ const taskSchema = new mongoose.Schema({
   categorie: {
     type: String,
     trim: true,
+    lowercase: true,
     maxlength: [50, 'La catégorie ne peut pas dépasser 50 caractères']
   },
   etiquettes: {

@@ -8,63 +8,195 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Handlebars.js -->
+  <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.min.js"></script>
+
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
 
   <!-- Header -->
-  <header class="bg-blue-600 text-white shadow-lg">
+  <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
     <div class="container mx-auto px-4 py-6">
-      <h1 class="text-3xl font-bold">📋 Gestionnaire de Tâches</h1>
-      <p class="text-blue-200 mt-1">Organisez vos tâches efficacement</p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold cursor-pointer hover:text-blue-100 transition" onclick="window.location.href='/'">
+            📋 Gestionnaire de Tâches
+          </h1>
+          <p class="text-blue-200 mt-1">Organisez vos tâches efficacement</p>
+        </div>
+        <button onclick="window.location.href='/create'"
+                class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-bold text-lg transition-all hover:scale-105 shadow-lg flex items-center gap-2">
+          <span class="text-2xl">+</span>
+          <span>Nouvelle Tâche</span>
+        </button>
+      </div>
     </div>
   </header>
 
   <!-- Main Container -->
-  <main class="container mx-auto px-4 py-8">
-
-    <!-- Filtres et Bouton Nouvelle Tâche -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div class="flex flex-wrap gap-4 items-center justify-between">
-        <div class="flex flex-wrap gap-3">
-          <select id="filterStatut" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Tous les statuts</option>
-            <option value="à faire">À faire</option>
-            <option value="en cours">En cours</option>
-            <option value="terminée">Terminée</option>
-            <option value="annulée">Annulée</option>
-          </select>
-
-          <select id="filterPriorite" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Toutes les priorités</option>
-            <option value="basse">Basse</option>
-            <option value="moyenne">Moyenne</option>
-            <option value="haute">Haute</option>
-            <option value="critique">Critique</option>
-          </select>
-
-          <input type="text" id="searchQuery" placeholder="Rechercher..."
-                 class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-
-        <button id="btnNewTask" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition">
-          + Nouvelle Tâche
-        </button>
-      </div>
-    </div>
-
-    <!-- Liste des Tâches -->
-    <div id="tasksList" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <!-- Les tâches seront affichées ici dynamiquement -->
-      <div class="text-center py-12 col-span-full">
-        <p class="text-gray-500 text-lg">Chargement des tâches...</p>
-      </div>
-    </div>
-
+  <main id="app" class="container mx-auto px-4 py-8">
+    <!-- Le contenu sera injecté ici par JavaScript -->
   </main>
 
-  <!-- JavaScript -->
-  <script src="js/app.js"></script>
+  <!-- ==================== TEMPLATES HANDLEBARS ==================== -->
+
+  <!-- Template: Page d'accueil -->
+  <script id="home-template" type="text/x-handlebars-template">
+    <div class="space-y-6">
+      <!-- Barre de recherche et filtres -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">🔍 Recherche générale</label>
+            <input type="text" id="searchQuery" placeholder="Rechercher dans les tâches, étiquettes..."
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">📁 Recherche par catégorie</label>
+            <input type="text" id="searchCategorie" placeholder="Filtrer par catégorie..."
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+            <select id="filterStatut" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="">Tous les statuts</option>
+              <option value="à faire">À faire</option>
+              <option value="en cours">En cours</option>
+              <option value="terminée">Terminée</option>
+              <option value="annulée">Annulée</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Priorité</label>
+            <select id="filterPriorite" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="">Toutes les priorités</option>
+              <option value="basse">Basse</option>
+              <option value="moyenne">Moyenne</option>
+              <option value="haute">Haute</option>
+              <option value="critique">Critique</option>
+            </select>
+          </div>
+        </div>
+        <!-- Liste des catégories disponibles -->
+        <div id="categoriesButtons" class="mt-4"></div>
+      </div>
+      <div id="tasksList" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div class="col-span-full text-center py-12">
+          <p class="text-gray-500">Chargement des tâches...</p>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <!-- Template: Carte de tâche -->
+  <script id="task-card-template" type="text/x-handlebars-template">
+    <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow border-l-4 {{borderClass}} fade-in flex flex-col h-full">
+      <div class="flex justify-between items-start mb-3 gap-3">
+        <h3 class="text-xl font-semibold text-gray-800 flex-1">{{titre}}</h3>
+        <span class="{{statusClass}} {{statusBorder}} text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm">{{statusLabel}}</span>
+      </div>
+      <p class="text-gray-600 mb-4 line-clamp-2">{{description}}</p>
+      <div class="flex flex-wrap gap-2 mb-3">
+        {{#if categorie}}
+          <span class="inline-flex items-center bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full">📁 {{categorie}}</span>
+        {{/if}}
+        {{#if etiquettes}}
+          {{#each etiquettes}}
+            <span class="inline-flex items-center text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">{{this}}</span>
+          {{/each}}
+        {{/if}}
+      </div>
+      <div class="flex-1">
+        <div class="flex justify-between items-center text-sm mb-2">
+          <span class="text-gray-500">📅 Échéance: {{echeance}}</span>
+          <span class="{{prioBgClass}} {{prioTextClass}} {{prioBorderClass}} text-xs px-3 py-1.5 rounded-full font-bold border-2 shadow-sm">{{prioriteLabel}}</span>
+        </div>
+        <div class="text-xs text-gray-400 mb-3">
+          🕐 Créée le {{dateCreation}}
+        </div>
+        <div class="text-sm mb-3 text-gray-600">✓ {{completedSubtasks}}/{{totalSubtasks}} sous-tâches terminées</div>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <a href="/task/{{_id}}" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-lg font-medium transition-colors text-center">Voir</a>
+        <a href="/edit/{{_id}}" class="bg-amber-50 hover:bg-amber-100 text-amber-600 px-4 py-2 rounded-lg font-medium transition-colors">✏️</a>
+        <button onclick="deleteTask('{{_id}}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg font-medium transition-colors">🗑️</button>
+      </div>
+    </div>
+  </script>
+
+  <!-- Template: Page de création -->
+  <script id="create-template" type="text/x-handlebars-template">
+    <div class="max-w-3xl mx-auto">
+      <div class="bg-white rounded-lg shadow-lg p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-3xl font-bold text-gray-800">➕ Nouvelle Tâche</h2>
+          <a href="/" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">✕</a>
+        </div>
+        <form id="createTaskForm" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Titre <span class="text-red-500">*</span></label>
+            <input type="text" id="titre" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Titre de la tâche">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea id="description" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Description détaillée"></textarea>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Priorité <span class="text-red-500">*</span></label>
+              <select id="priorite" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="basse">Basse</option>
+                <option value="moyenne" selected>Moyenne</option>
+                <option value="haute">Haute</option>
+                <option value="critique">Critique</option>
+              </select>
+            </div>
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+              <input type="text" id="categorie" autocomplete="off" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Ex: Travail, Personnel...">
+              <div id="categoriesSuggestions" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Échéance</label>
+            <input type="date" id="echeance" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Étiquettes (séparées par des virgules)</label>
+            <input type="text" id="etiquettes" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="urgent, important, réunion...">
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p class="text-sm text-blue-800 font-medium mb-3">Informations de l'auteur</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input type="text" id="auteurNom" required placeholder="Nom *" class="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+              <input type="text" id="auteurPrenom" required placeholder="Prénom *" class="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+              <input type="email" id="auteurEmail" required placeholder="Email *" class="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+          <div class="flex gap-4 pt-4">
+            <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-bold text-lg transition-colors">✓ Créer la tâche</button>
+            <a href="/" class="px-8 bg-gray-300 hover:bg-gray-400 text-gray-700 py-4 rounded-lg font-semibold text-center flex items-center justify-center transition-colors">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </script>
+
+  <!-- JavaScript - Ordre important ! -->
+  <!-- 1. Utilitaires communs en premier -->
+  <script src="/js/utils.js"></script>
+
+  <!-- 2. Pages (chargées mais ne s'exécutent que si leurs éléments DOM existent) -->
+  <script src="/js/home.js"></script>
+  <script src="/js/create.js"></script>
+  <script src="/js/view.js"></script>
+  <script src="/js/edit.js"></script>
+
+  <!-- 3. App principal avec le router -->
+  <script src="/js/app.js"></script>
 </body>
 </html>

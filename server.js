@@ -34,16 +34,15 @@ app.get('/api', (req, res) => {
 
 // Routes API
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/categories', require('./routes/categories'));
 
-// Gestion des erreurs 404
+// SPA: Toutes les autres routes renvoient index.html (pour le routing côté client)
 app.use((req, res) => {
-  res.status(404).json({ success: false, error: 'Route non trouvée' });
+  res.sendFile(__dirname + '/public/index.html');
 });
 
 // Démarrer le serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-  console.log(`📡 API: http://localhost:${PORT}/api`);
-  console.log(`🌐 Frontend: http://localhost:${PORT}`);
+  console.log(`Serveur démarré sur http://localhost:${PORT}`);
 });

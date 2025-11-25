@@ -1,4 +1,5 @@
 const Task = require('../models/Task');
+const Category = require('../models/Category');
 
 // @desc    Récupérer toutes les tâches (avec filtres et tris)
 // @route   GET /api/tasks
@@ -111,6 +112,11 @@ exports.createTask = async (req, res) => {
   try {
     const task = await Task.create(req.body);
 
+    // Incrémenter le compteur de la catégorie
+    if (task.categorie) {
+      await Category.incrementCount(task.categorie);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Tâche créée avec succès',
@@ -143,6 +149,16 @@ exports.createTask = async (req, res) => {
 // @access  Public
 exports.updateTask = async (req, res) => {
   try {
+    // Récupérer l'ancienne tâche pour comparer les catégories
+    const oldTask = await Task.findById(req.params.id);
+
+    if (!oldTask) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche non trouvée'
+      });
+    }
+
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -152,11 +168,20 @@ exports.updateTask = async (req, res) => {
       }
     );
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tâche non trouvée'
-      });
+    // Gérer les catégories
+    const oldCategory = oldTask.categorie;
+    const newCategory = task.categorie;
+
+    if (oldCategory !== newCategory) {
+      // Décrémenter l'ancienne catégorie
+      if (oldCategory) {
+        await Category.decrementCount(oldCategory);
+      }
+
+      // Incrémenter la nouvelle catégorie
+      if (newCategory) {
+        await Category.incrementCount(newCategory);
+      }
     }
 
     res.status(200).json({
@@ -206,6 +231,11 @@ exports.deleteTask = async (req, res) => {
         success: false,
         error: 'Tâche non trouvée'
       });
+    }
+
+    // Décrémenter le compteur de la catégorie
+    if (task.categorie) {
+      await Category.decrementCount(task.categorie);
     }
 
     res.status(200).json({
