@@ -158,7 +158,7 @@ async function renderEditPage(task) {
           <!-- Étiquettes -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Étiquettes (séparées par des virgules)
+              Étiquettes (séparées par /)
             </label>
             <input
               type="text"
