@@ -17,6 +17,14 @@ async function createPage() {
   // Charger les catégories
   await loadCategories();
 
+  // Auto-remplir les informations de l'auteur avec les données du user connecté
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    $('auteurNom').value = currentUser.nom || '';
+    $('auteurPrenom').value = currentUser.prenom || '';
+    $('auteurEmail').value = currentUser.email || '';
+  }
+
   // Attacher les événements
   $('createTaskForm').addEventListener('submit', handleCreateTaskSubmit);
   $('categorie').addEventListener('input', handleCategorieInput);
@@ -102,6 +110,22 @@ function hideCategoriesSuggestions() {
   $('categoriesSuggestions').classList.add('hidden');
 }
 
+// Toggle visibilité (formulaire de création)
+function toggleVisibiliteCreate() {
+  const visibiliteInput = $('visibilite');
+  const toggleBtn = $('visibiliteToggleBtn');
+
+  if (visibiliteInput.value === 'privée') {
+    visibiliteInput.value = 'publique';
+    toggleBtn.className = 'bg-green-100 text-green-700 text-xs px-3 py-1.5 rounded-full font-semibold border-2 border-green-200 shadow-sm hover:opacity-80 transition-opacity';
+    toggleBtn.innerHTML = '🌍 Publique';
+  } else {
+    visibiliteInput.value = 'privée';
+    toggleBtn.className = 'bg-red-100 text-red-700 text-xs px-3 py-1.5 rounded-full font-semibold border-2 border-red-200 shadow-sm hover:opacity-80 transition-opacity';
+    toggleBtn.innerHTML = '🔒 Privée';
+  }
+}
+
 // Gérer la soumission du formulaire
 async function handleCreateTaskSubmit(event) {
   event.preventDefault();
@@ -112,6 +136,7 @@ async function handleCreateTaskSubmit(event) {
     description: $('description').value.trim(),
     statut: 'à faire',
     priorite: $('priorite').value,
+    visibilite: $('visibilite').value,
     categorie: $('categorie').value.trim().toLowerCase(), // Normaliser en minuscules
     auteur: {
       nom: $('auteurNom').value.trim(),
@@ -136,11 +161,8 @@ async function handleCreateTaskSubmit(event) {
   }
 
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetchWithAuth(API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify(taskData)
     });
 
@@ -150,7 +172,7 @@ async function handleCreateTaskSubmit(event) {
     }
 
     showNotification('Tâche créée avec succès !', 'success');
-    window.location.href = '/';
+    navigate('/my-tasks');
   } catch (error) {
     console.error('Erreur:', error);
     showNotification('Erreur : ' + error.message, 'error');

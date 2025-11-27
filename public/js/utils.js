@@ -140,5 +140,5 @@ function getPriorityBorderClass(priority) {
 // Navigation - pour changer de page sans rechargement
 function navigate(path) {
   window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  router(); // Appeler directement le router au lieu de déclencher popstate
 }

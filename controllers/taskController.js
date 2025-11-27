@@ -1,18 +1,19 @@
 const Task = require('../models/Task');
 const Category = require('../models/Category');
 
-// @desc    Récupérer toutes les tâches (avec filtres et tris)
+// @desc    Récupérer toutes les tâches de l'utilisateur connecté
 // @route   GET /api/tasks
-// @access  Public
+// @access  Private
 exports.getAllTasks = async (req, res) => {
   try {
-    // Construction du filtre
-    const filter = {};
+    // Filtre par propriétaire (utilisateur connecté)
+    const filter = { proprietaire: req.userId };
 
-    // Filtres simples
+    // Filtres additionnels
     if (req.query.statut) filter.statut = req.query.statut;
     if (req.query.priorite) filter.priorite = req.query.priorite;
     if (req.query.categorie) filter.categorie = req.query.categorie;
+    if (req.query.visibilite) filter.visibilite = req.query.visibilite;
 
     // Filtre par étiquette
     if (req.query.etiquette) {
@@ -44,12 +45,11 @@ exports.getAllTasks = async (req, res) => {
       const ordre = req.query.ordre === 'desc' ? -1 : 1;
       sort[req.query.tri] = ordre;
     } else {
-      // Tri par défaut : date de création décroissante
       sort.dateCreation = -1;
     }
 
     // Exécution de la requête
-    const tasks = await Task.find(filter).sort(sort);
+    const tasks = await Task.find(filter).sort(sort).populate('proprietaire', 'username email');
 
     res.status(200).json({
       success: true,
@@ -67,18 +67,90 @@ exports.getAllTasks = async (req, res) => {
   }
 };
 
+// @desc    Récupérer toutes les tâches publiques
+// @route   GET /api/tasks/public
+// @access  Public (pas besoin de token)
+exports.getPublicTasks = async (req, res) => {
+  try {
+    // Filtre : seulement les tâches publiques
+    const filter = { visibilite: 'publique' };
+
+    // Filtres additionnels
+    if (req.query.statut) filter.statut = req.query.statut;
+    if (req.query.priorite) filter.priorite = req.query.priorite;
+    if (req.query.categorie) filter.categorie = req.query.categorie;
+
+    // Recherche textuelle
+    if (req.query.q) {
+      filter.$or = [
+        { titre: { $regex: req.query.q, $options: 'i' } },
+        { description: { $regex: req.query.q, $options: 'i' } }
+      ];
+    }
+
+    // Tri
+    let sort = { dateCreation: -1 };
+    if (req.query.tri) {
+      const ordre = req.query.ordre === 'desc' ? -1 : 1;
+      sort = { [req.query.tri]: ordre };
+    }
+
+    // Limite pour les visiteurs non connectés (3-4 tâches)
+    let limit = null;
+    if (!req.userId) {
+      limit = 4; // Visiteurs voient max 4 tâches
+    }
+
+    // Exécution de la requête
+    let query = Task.find(filter).sort(sort).populate('proprietaire', 'username email');
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const tasks = await query;
+
+    res.status(200).json({
+      success: true,
+      count: tasks.length,
+      data: tasks,
+      isLimited: !req.userId // Indique si la liste est limitée (visiteur)
+    });
+
+  } catch (error) {
+    console.error('Erreur getPublicTasks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la récupération des tâches publiques',
+      message: error.message
+    });
+  }
+};
+
 // @desc    Récupérer une tâche par ID
 // @route   GET /api/tasks/:id
-// @access  Public
+// @access  Public (mais limité selon visibilité)
 exports.getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('proprietaire', 'username email');
 
     if (!task) {
       return res.status(404).json({
         success: false,
         error: 'Tâche non trouvée'
       });
+    }
+
+    // Vérifier les permissions de lecture
+    // Publique : tout le monde peut voir
+    // Privée : seulement le propriétaire
+    if (task.visibilite === 'privée') {
+      if (!req.userId || task.proprietaire._id.toString() !== req.userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          error: 'Accès refusé. Cette tâche est privée.'
+        });
+      }
     }
 
     res.status(200).json({
@@ -89,7 +161,6 @@ exports.getTaskById = async (req, res) => {
   } catch (error) {
     console.error('Erreur getTaskById:', error);
 
-    // Erreur de format d'ID MongoDB
     if (error.kind === 'ObjectId') {
       return res.status(404).json({
         success: false,
@@ -107,32 +178,42 @@ exports.getTaskById = async (req, res) => {
 
 // @desc    Créer une nouvelle tâche
 // @route   POST /api/tasks
-// @access  Public
+// @access  Private
 exports.createTask = async (req, res) => {
   try {
-    const task = await Task.create(req.body);
+    // Ajouter automatiquement le propriétaire (depuis le token)
+    const taskData = {
+      ...req.body,
+      proprietaire: req.userId,
+      // Garder visibilite si fourni, sinon défaut 'privée' du modèle
+    };
 
-    // Incrémenter le compteur de la catégorie
+    // Créer la tâche
+    const task = new Task(taskData);
+    await task.save();
+
+    // Gérer la catégorie
     if (task.categorie) {
       await Category.incrementCount(task.categorie);
     }
 
+    // Populate le propriétaire avant de renvoyer
+    await task.populate('proprietaire', 'username email');
+
     res.status(201).json({
       success: true,
-      message: 'Tâche créée avec succès',
-      data: task
+      data: task,
+      message: 'Tâche créée avec succès'
     });
 
   } catch (error) {
     console.error('Erreur createTask:', error);
 
-    // Erreur de validation Mongoose
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        error: 'Erreur de validation',
-        messages
+        error: messages.join(', ')
       });
     }
 
@@ -144,66 +225,71 @@ exports.createTask = async (req, res) => {
   }
 };
 
-// @desc    Modifier une tâche
+// @desc    Mettre à jour une tâche
 // @route   PUT /api/tasks/:id
-// @access  Public
+// @access  Private (propriétaire uniquement)
 exports.updateTask = async (req, res) => {
   try {
-    // Récupérer l'ancienne tâche pour comparer les catégories
-    const oldTask = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id);
 
-    if (!oldTask) {
+    if (!task) {
       return res.status(404).json({
         success: false,
         error: 'Tâche non trouvée'
       });
     }
 
-    const task = await Task.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true, // Retourner le document modifié
-        runValidators: true // Exécuter les validations
-      }
-    );
+    // Vérifier que l'utilisateur est le propriétaire
+    if (task.proprietaire.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accès refusé. Vous n\'êtes pas le propriétaire de cette tâche.'
+      });
+    }
 
-    // Gérer les catégories
-    const oldCategory = oldTask.categorie;
-    const newCategory = task.categorie;
+    // Gérer le changement de catégorie
+    const oldCategory = task.categorie;
+    const newCategory = req.body.categorie;
 
     if (oldCategory !== newCategory) {
-      // Décrémenter l'ancienne catégorie
       if (oldCategory) {
         await Category.decrementCount(oldCategory);
       }
-
-      // Incrémenter la nouvelle catégorie
       if (newCategory) {
         await Category.incrementCount(newCategory);
       }
     }
 
+    // Empêcher la modification du propriétaire
+    delete req.body.proprietaire;
+
+    // Mettre à jour la tâche
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).populate('proprietaire', 'username email');
+
     res.status(200).json({
       success: true,
-      message: 'Tâche mise à jour avec succès',
-      data: task
+      data: updatedTask,
+      message: 'Tâche mise à jour avec succès'
     });
 
   } catch (error) {
     console.error('Erreur updateTask:', error);
 
-    // Erreur de validation
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        error: 'Erreur de validation',
-        messages
+        error: messages.join(', ')
       });
     }
 
-    // Erreur de format d'ID
     if (error.kind === 'ObjectId') {
       return res.status(404).json({
         success: false,
@@ -219,12 +305,12 @@ exports.updateTask = async (req, res) => {
   }
 };
 
-// @desc    Supprimer une tâche
-// @route   DELETE /api/tasks/:id
-// @access  Public
-exports.deleteTask = async (req, res) => {
+// @desc    Changer la visibilité d'une tâche
+// @route   PATCH /api/tasks/:id/visibility
+// @access  Private (propriétaire uniquement)
+exports.toggleVisibility = async (req, res) => {
   try {
-    const task = await Task.findByIdAndDelete(req.params.id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return res.status(404).json({
@@ -233,21 +319,74 @@ exports.deleteTask = async (req, res) => {
       });
     }
 
-    // Décrémenter le compteur de la catégorie
+    // Vérifier que l'utilisateur est le propriétaire
+    if (task.proprietaire.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accès refusé. Vous n\'êtes pas le propriétaire de cette tâche.'
+      });
+    }
+
+    // Toggle visibilité
+    task.visibilite = task.visibilite === 'privée' ? 'publique' : 'privée';
+    await task.save();
+
+    await task.populate('proprietaire', 'username email');
+
+    res.status(200).json({
+      success: true,
+      data: task,
+      message: `Tâche désormais ${task.visibilite}`
+    });
+
+  } catch (error) {
+    console.error('Erreur toggleVisibility:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors du changement de visibilité',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Supprimer une tâche
+// @route   DELETE /api/tasks/:id
+// @access  Private (propriétaire uniquement)
+exports.deleteTask = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche non trouvée'
+      });
+    }
+
+    // Vérifier que l'utilisateur est le propriétaire
+    if (task.proprietaire.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accès refusé. Vous n\'êtes pas le propriétaire de cette tâche.'
+      });
+    }
+
+    // Décrémenter le compteur de catégorie
     if (task.categorie) {
       await Category.decrementCount(task.categorie);
     }
 
+    // Supprimer la tâche
+    await Task.findByIdAndDelete(req.params.id);
+
     res.status(200).json({
       success: true,
-      message: 'Tâche supprimée avec succès',
-      data: {}
+      message: 'Tâche supprimée avec succès'
     });
 
   } catch (error) {
     console.error('Erreur deleteTask:', error);
 
-    // Erreur de format d'ID
     if (error.kind === 'ObjectId') {
       return res.status(404).json({
         success: false,
@@ -258,75 +397,6 @@ exports.deleteTask = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Erreur serveur lors de la suppression de la tâche',
-      message: error.message
-    });
-  }
-};
-
-// @desc    Ajouter une sous-tâche
-// @route   POST /api/tasks/:id/subtasks
-// @access  Public
-exports.addSubtask = async (req, res) => {
-  try {
-    const task = await Task.findById(req.params.id);
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tâche non trouvée'
-      });
-    }
-
-    task.sousTaches.push(req.body);
-    await task.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Sous-tâche ajoutée avec succès',
-      data: task
-    });
-
-  } catch (error) {
-    console.error('Erreur addSubtask:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur serveur lors de l\'ajout de la sous-tâche',
-      message: error.message
-    });
-  }
-};
-
-// @desc    Ajouter un commentaire
-// @route   POST /api/tasks/:id/comments
-// @access  Public
-exports.addComment = async (req, res) => {
-  try {
-    const task = await Task.findById(req.params.id);
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tâche non trouvée'
-      });
-    }
-
-    task.commentaires.push({
-      ...req.body,
-      date: new Date()
-    });
-    await task.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Commentaire ajouté avec succès',
-      data: task
-    });
-
-  } catch (error) {
-    console.error('Erreur addComment:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur serveur lors de l\'ajout du commentaire',
       message: error.message
     });
   }

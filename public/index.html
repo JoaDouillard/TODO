@@ -21,16 +21,14 @@
     <div class="container mx-auto px-4 py-6">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold cursor-pointer hover:text-blue-100 transition" onclick="window.location.href='/'">
+          <h1 class="text-3xl font-bold cursor-pointer hover:text-blue-100 transition" onclick="navigate('/my-tasks')">
             📋 Gestionnaire de Tâches
           </h1>
           <p class="text-blue-200 mt-1">Organisez vos tâches efficacement</p>
         </div>
-        <button onclick="window.location.href='/create'"
-                class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-bold text-lg transition-all hover:scale-105 shadow-lg flex items-center gap-2">
-          <span class="text-2xl">+</span>
-          <span>Nouvelle Tâche</span>
-        </button>
+        <div class="header-right">
+          <!-- Le contenu sera injecté dynamiquement par auth.js -->
+        </div>
       </div>
     </div>
   </header>
@@ -97,8 +95,19 @@
     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow border-l-4 {{borderClass}} fade-in flex flex-col h-full">
       <div class="flex justify-between items-start mb-3 gap-3">
         <h3 class="text-xl font-semibold text-gray-800 flex-1">{{titre}}</h3>
-        <span class="{{statusClass}} {{statusBorder}} text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm">{{statusLabel}}</span>
+        <div class="flex gap-2">
+          {{#if showVisibilityBadge}}
+            {{!-- Afficher le badge de visibilité (non-cliquable sur Mes Tâches) --}}
+            <span class="{{visibiliteClass}} text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm">
+              {{visibiliteIcon}}
+            </span>
+          {{/if}}
+          <span class="{{statusClass}} {{statusBorder}} text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm">{{statusLabel}}</span>
+        </div>
       </div>
+      {{#if proprietaireNom}}
+        <p class="text-xs text-gray-500 mb-2">Par {{proprietaireNom}}</p>
+      {{/if}}
       <p class="text-gray-600 mb-4 line-clamp-2">{{description}}</p>
       <div class="flex flex-wrap gap-2 mb-3">
         {{#if categorie}}
@@ -121,9 +130,13 @@
         <div class="text-sm mb-3 text-gray-600">✓ {{completedSubtasks}}/{{totalSubtasks}} sous-tâches terminées</div>
       </div>
       <div class="flex gap-2 mt-4">
-        <a href="/task/{{_id}}" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-lg font-medium transition-colors text-center">Voir</a>
-        <a href="/edit/{{_id}}" class="bg-amber-50 hover:bg-amber-100 text-amber-600 px-4 py-2 rounded-lg font-medium transition-colors">✏️</a>
-        <button onclick="deleteTask('{{_id}}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg font-medium transition-colors">🗑️</button>
+        {{#if isOwner}}
+          <a href="/task/{{_id}}" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-lg font-medium transition-colors text-center">Voir</a>
+          <a href="/edit/{{_id}}" class="bg-amber-50 hover:bg-amber-100 text-amber-600 px-4 py-2 rounded-lg font-medium transition-colors">✏️</a>
+          <button onclick="deleteTask('{{_id}}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg font-medium transition-colors">🗑️</button>
+        {{else}}
+          <a href="/task/{{_id}}" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-lg font-medium transition-colors text-center">Voir et Commenter</a>
+        {{/if}}
       </div>
     </div>
   </script>
@@ -134,9 +147,18 @@
       <div class="bg-white rounded-lg shadow-lg p-8">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-3xl font-bold text-gray-800">➕ Nouvelle Tâche</h2>
-          <a href="/" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">✕</a>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-700">Visibilité:</span>
+              <button type="button" id="visibiliteToggleBtn" onclick="toggleVisibiliteCreate()" class="bg-red-100 text-red-700 text-xs px-3 py-1.5 rounded-full font-semibold border-2 border-red-200 shadow-sm hover:opacity-80 transition-opacity">
+                🔒 Privée
+              </button>
+            </div>
+            <a href="/" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">✕</a>
+          </div>
         </div>
         <form id="createTaskForm" class="space-y-6">
+          <input type="hidden" id="visibilite" value="privée">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Titre <span class="text-red-500">*</span></label>
             <input type="text" id="titre" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Titre de la tâche">
@@ -170,11 +192,12 @@
             <input type="text" id="etiquettes" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="urgent / important / réunion...">
           </div>
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p class="text-sm text-blue-800 font-medium mb-3">Informations de l'auteur</p>
+            <p class="text-sm text-blue-800 font-medium mb-2">Informations de l'auteur</p>
+            <p class="text-xs text-blue-600 mb-3">✓ Rempli automatiquement depuis votre profil</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input type="text" id="auteurNom" required placeholder="Nom *" class="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-              <input type="text" id="auteurPrenom" required placeholder="Prénom *" class="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-              <input type="email" id="auteurEmail" required placeholder="Email *" class="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+              <input type="text" id="auteurNom" required readonly class="px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 cursor-not-allowed">
+              <input type="text" id="auteurPrenom" required readonly class="px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 cursor-not-allowed">
+              <input type="email" id="auteurEmail" required readonly class="px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 cursor-not-allowed">
             </div>
           </div>
           <div class="flex gap-4 pt-4">
@@ -186,17 +209,96 @@
     </div>
   </script>
 
+  <!-- Template: Page d'inscription -->
+  <script id="register-template" type="text/x-handlebars-template">
+    <div class="max-w-md mx-auto">
+      <div class="bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">S'inscrire</h2>
+        <form id="registerForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Nom <span class="text-red-500">*</span></label>
+              <input type="text" id="nom" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Doe" minlength="2" maxlength="50">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Prénom <span class="text-red-500">*</span></label>
+              <input type="text" id="prenom" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="John" minlength="2" maxlength="50">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nom d'utilisateur <span class="text-red-500">*</span></label>
+            <input type="text" id="username" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="john_doe" minlength="3" maxlength="30">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
+            <input type="email" id="email" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="john@example.com">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Mot de passe <span class="text-red-500">*</span></label>
+            <input type="password" id="password" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••" minlength="6">
+            <p class="text-xs text-gray-500 mt-1">Au moins 6 caractères</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Confirmer le mot de passe <span class="text-red-500">*</span></label>
+            <input type="password" id="confirmPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+          </div>
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold text-lg transition-colors">
+            S'inscrire
+          </button>
+        </form>
+        <div class="mt-6 text-center">
+          <p class="text-gray-600">Vous avez déjà un compte ?
+            <a href="/login" class="text-blue-600 hover:text-blue-700 font-semibold">Se connecter</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <!-- Template: Page de connexion -->
+  <script id="login-template" type="text/x-handlebars-template">
+    <div class="max-w-md mx-auto">
+      <div class="bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Se connecter</h2>
+        <form id="loginForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Email ou nom d'utilisateur <span class="text-red-500">*</span></label>
+            <input type="text" id="emailOrUsername" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="john@example.com ou john_doe">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Mot de passe <span class="text-red-500">*</span></label>
+            <input type="password" id="password" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+          </div>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-lg transition-colors">
+            Se connecter
+          </button>
+        </form>
+        <div class="mt-6 text-center">
+          <p class="text-gray-600">Vous n'avez pas de compte ?
+            <a href="/register" class="text-green-600 hover:text-green-700 font-semibold">S'inscrire</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </script>
+
   <!-- JavaScript - Ordre important ! -->
   <!-- 1. Utilitaires communs en premier -->
   <script src="/js/utils.js"></script>
 
-  <!-- 2. Pages (chargées mais ne s'exécutent que si leurs éléments DOM existent) -->
+  <!-- 2. Authentification (avant les pages) -->
+  <script src="/js/auth.js"></script>
+
+  <!-- 2.5 Gestion des tâches (Mes Tâches et Publiques) -->
+  <script src="/js/tasks.js"></script>
+
+  <!-- 3. Pages (chargées mais ne s'exécutent que si leurs éléments DOM existent) -->
   <script src="/js/home.js"></script>
   <script src="/js/create.js"></script>
   <script src="/js/view.js"></script>
   <script src="/js/edit.js"></script>
 
-  <!-- 3. App principal avec le router -->
+  <!-- 4. App principal avec le router -->
   <script src="/js/app.js"></script>
 </body>
 </html>

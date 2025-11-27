@@ -108,6 +108,19 @@ const taskSchema = new mongoose.Schema({
     required: [true, 'La priorité est requise'],
     default: 'moyenne'
   },
+  proprietaire: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'Le propriétaire est requis']
+  },
+  visibilite: {
+    type: String,
+    enum: {
+      values: ['privée', 'publique'],
+      message: '{VALUE} n\'est pas une visibilité valide'
+    },
+    default: 'privée'
+  },
   auteur: {
     nom: {
       type: String,
@@ -157,6 +170,9 @@ taskSchema.index({ categorie: 1 });
 taskSchema.index({ echeance: 1 });
 taskSchema.index({ dateCreation: -1 });
 taskSchema.index({ 'auteur.email': 1 });
+taskSchema.index({ proprietaire: 1 });
+taskSchema.index({ visibilite: 1 });
+taskSchema.index({ proprietaire: 1, visibilite: 1 }); // Index composé pour requêtes fréquentes
 
 // Index de recherche textuelle
 taskSchema.index({ titre: 'text', description: 'text' });

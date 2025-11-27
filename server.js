@@ -33,12 +33,22 @@ app.get('/api', (req, res) => {
 });
 
 // Routes API
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/categories', require('./routes/categories'));
 
-// SPA: Toutes les autres routes renvoient index.html (pour le routing côté client)
-app.use((req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+// SPA: Toutes les autres routes (NON-API) renvoient index.html (pour le routing côté client)
+app.use((req, res, next) => {
+  // Ne pas intercepter les routes API
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  // Seulement pour les requêtes GET
+  if (req.method === 'GET') {
+    res.sendFile(__dirname + '/public/index.html');
+  } else {
+    next();
+  }
 });
 
 // Démarrer le serveur

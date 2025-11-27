@@ -10,7 +10,7 @@ async function loadEditPage(taskId) {
   currentTaskId = taskId;
 
   try {
-    const response = await fetch(`${API_URL}/${taskId}`);
+    const response = await fetchWithAuth(`${API_URL}/${taskId}`);
     const data = await response.json();
 
     if (!data.success) {
@@ -53,16 +53,25 @@ async function renderEditPage(task) {
         <!-- En-tête -->
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-3xl font-bold text-gray-800">✏️ Modifier la tâche</h2>
-          <button
-            onclick="navigate('/task/${task._id}')"
-            class="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-          >
-            ✕
-          </button>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-700">Visibilité:</span>
+              <button type="button" id="visibiliteToggleBtnEdit" onclick="toggleVisibiliteEdit()" class="${task.visibilite === 'publique' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'} text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm hover:opacity-80 transition-opacity">
+                ${task.visibilite === 'publique' ? '🌍 Publique' : '🔒 Privée'}
+              </button>
+            </div>
+            <button
+              onclick="navigate('/task/${task._id}')"
+              class="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <!-- Formulaire -->
         <form id="editTaskForm" class="space-y-6">
+          <input type="hidden" id="visibilite" value="${task.visibilite || 'privée'}">
           <!-- Titre -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -275,7 +284,7 @@ async function renderEditPage(task) {
 // Charger les catégories depuis l'API
 async function loadCategoriesEdit() {
   try {
-    const response = await fetch('http://localhost:3000/api/categories');
+    const response = await fetchWithAuth('http://localhost:3000/api/categories');
     const data = await response.json();
 
     if (data.success) {
@@ -344,6 +353,22 @@ function hideCategoriesSuggestionsEdit() {
   const suggestions = $('categoriesSuggestionsEdit');
   if (suggestions) {
     suggestions.classList.add('hidden');
+  }
+}
+
+// Toggle visibilité (formulaire de modification)
+function toggleVisibiliteEdit() {
+  const visibiliteInput = $('visibilite');
+  const toggleBtn = $('visibiliteToggleBtnEdit');
+
+  if (visibiliteInput.value === 'privée') {
+    visibiliteInput.value = 'publique';
+    toggleBtn.className = 'bg-green-100 text-green-700 border-green-200 text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm hover:opacity-80 transition-opacity';
+    toggleBtn.innerHTML = '🌍 Publique';
+  } else {
+    visibiliteInput.value = 'privée';
+    toggleBtn.className = 'bg-red-100 text-red-700 border-red-200 text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm hover:opacity-80 transition-opacity';
+    toggleBtn.innerHTML = '🔒 Privée';
   }
 }
 
@@ -477,6 +502,7 @@ async function handleEditTask(event) {
     description: $('description').value.trim(),
     statut: $('statut').value,
     priorite: $('priorite').value,
+    visibilite: $('visibilite').value,
     categorie: $('categorie').value.trim().toLowerCase(), // Normaliser en minuscules
     sousTaches: editingTask.sousTaches || []
   };
@@ -499,11 +525,8 @@ async function handleEditTask(event) {
   }
 
   try {
-    const response = await fetch(`${API_URL}/${currentTaskId}`, {
+    const response = await fetchWithAuth(`${API_URL}/${currentTaskId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify(updatedData)
     });
 

@@ -7,6 +7,13 @@ let homeTemplate, taskCardTemplate;
 
 // Fonction appelée par le router
 function homePage() {
+  // Si l'utilisateur est connecté, rediriger vers "Mes Tâches"
+  if (isAuthenticated()) {
+    navigate('/my-tasks');
+    return;
+  }
+
+  // Mode visiteur : afficher quelques tâches publiques
   // Compiler les templates Handlebars
   const homeSource = document.getElementById('home-template').innerHTML;
   homeTemplate = Handlebars.compile(homeSource);
@@ -17,9 +24,8 @@ function homePage() {
   // Rendre le template de la page
   $('app').innerHTML = homeTemplate();
 
-  // Charger les données et attacher les événements
-  loadTasks();
-  attachEventListeners();
+  // Charger les tâches publiques pour visiteur
+  loadPublicTasksForVisitor();
 }
 
 // Attacher les événements
@@ -33,7 +39,7 @@ function attachEventListeners() {
 // Charger toutes les tâches
 async function loadTasks() {
   try {
-    const response = await fetch(API_URL);
+    const response = await fetchWithAuth(API_URL);
     const data = await response.json();
 
     if (data.success) {
@@ -190,7 +196,7 @@ async function deleteTask(taskId) {
   }
 
   try {
-    const response = await fetch(`${API_URL}/${taskId}`, {
+    const response = await fetchWithAuth(`${API_URL}/${taskId}`, {
       method: 'DELETE'
     });
 
@@ -204,4 +210,126 @@ async function deleteTask(taskId) {
     console.error('Erreur:', error);
     showNotification('Erreur lors de la suppression', 'error');
   }
+}
+
+// ========================================
+// MODE VISITEUR
+// ========================================
+
+async function loadPublicTasksForVisitor() {
+  try {
+    // Charger les tâches publiques (sans authentification)
+    const response = await fetch(`${API_URL}/public`);
+    const data = await response.json();
+
+    if (data.success) {
+      const publicTasks = data.data || [];
+
+      // Modifier le titre de la section
+      const titleElement = document.querySelector('#app h2') || document.querySelector('#app .text-3xl');
+      if (titleElement) {
+        titleElement.textContent = '🌍 Aperçu des Tâches Publiques';
+      }
+
+      // Masquer les filtres en mode visiteur
+      const filtersSection = document.querySelector('.bg-white.rounded-lg.shadow-md.p-6.mb-6');
+      if (filtersSection) {
+        filtersSection.style.display = 'none';
+      }
+
+      // Afficher un message d'invitation
+      const container = $('tasksList');
+
+      if (publicTasks.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <p class="text-gray-500 text-xl mb-4">📭 Aucune tâche publique disponible</p>
+            <p class="text-gray-600 mb-6">Connectez-vous pour créer et gérer vos propres tâches !</p>
+            <div class="flex gap-4 justify-center">
+              <a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                Se connecter
+              </a>
+              <a href="/register" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                S'inscrire
+              </a>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Afficher les tâches publiques
+      displayVisitorTasks(publicTasks);
+
+    } else {
+      throw new Error('Erreur lors du chargement des tâches publiques');
+    }
+  } catch (error) {
+    console.error('Erreur:', error);
+    $('tasksList').innerHTML = `
+      <div class="col-span-full text-center py-12">
+        <p class="text-red-500 text-xl mb-4">❌ Erreur lors du chargement</p>
+        <p class="text-gray-600">${escapeHTML(error.message)}</p>
+      </div>
+    `;
+  }
+}
+
+function displayVisitorTasks(tasks) {
+  const container = $('tasksList');
+
+  // Préparer les données des tâches (mode non-propriétaire)
+  const currentUser = getCurrentUser();
+  const tasksData = tasks.map(task => {
+    const isOwner = false; // En mode visiteur, on n'est propriétaire d'aucune tâche
+    const completedSubtasks = task.sousTaches ? task.sousTaches.filter(st => st.statut === 'terminée').length : 0;
+    const totalSubtasks = task.sousTaches ? task.sousTaches.length : 0;
+    const proprietaireNom = task.proprietaire ? `@${task.proprietaire.username}` : 'Utilisateur inconnu';
+
+    return {
+      _id: task._id,
+      titre: task.titre,
+      description: task.description || 'Pas de description',
+      categorie: task.categorie,
+      etiquettes: task.etiquettes || [],
+      echeance: formatDate(task.echeance),
+      dateCreation: formatDate(task.dateCreation),
+      prioriteLabel: task.priorite.toUpperCase(),
+      statusClass: getStatusClass(task.statut),
+      statusLabel: getStatusLabel(task.statut),
+      statusBorder: getStatusBorderClass(task.statut),
+      prioClass: getPriorityColor(task.priorite),
+      prioBgClass: getPriorityBgClass(task.priorite),
+      prioTextClass: getPriorityTextClass(task.priorite),
+      prioBorderClass: getPriorityBorderClass(task.priorite),
+      borderClass: getPriorityBorderColor(task.priorite),
+      completedSubtasks,
+      totalSubtasks,
+      isOwner,
+      proprietaireNom,
+      visibilite: 'publique',
+      visibiliteIcon: '🌍',
+      visibiliteClass: 'bg-green-100 text-green-700'
+    };
+  });
+
+  // Afficher les cartes + message d'invitation
+  container.innerHTML = `
+    <div class="col-span-full bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-4">
+      <h3 class="text-xl font-bold text-blue-800 mb-2">👋 Bienvenue !</h3>
+      <p class="text-blue-700 mb-4">
+        Vous consultez un aperçu des tâches publiques.
+        <strong>Connectez-vous</strong> pour créer vos propres tâches, les organiser et collaborer !
+      </p>
+      <div class="flex gap-4">
+        <a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+          Se connecter
+        </a>
+        <a href="/register" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+          S'inscrire
+        </a>
+      </div>
+    </div>
+    ${tasksData.map(taskData => taskCardTemplate(taskData)).join('')}
+  `;
 }

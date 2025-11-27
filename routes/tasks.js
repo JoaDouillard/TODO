@@ -2,28 +2,30 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllTasks,
+  getPublicTasks,
   getTaskById,
   createTask,
   updateTask,
-  deleteTask,
-  addSubtask,
-  addComment
+  toggleVisibility,
+  deleteTask
 } = require('../controllers/taskController');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
-// Routes CRUD de base
+// Route pour les tâches publiques (AVANT les routes avec :id pour éviter les conflits)
+// Accessible sans token, mais avec token permet de voir toutes les tâches publiques
+router.get('/public', optionalAuthenticate, getPublicTasks);
+
+// Routes CRUD de base - Toutes protégées sauf getTaskById qui est optionnel
 router.route('/')
-  .get(getAllTasks)      // GET /api/tasks - Récupérer toutes les tâches
-  .post(createTask);     // POST /api/tasks - Créer une tâche
+  .get(authenticate, getAllTasks)      // GET /api/tasks - Récupérer les tâches de l'utilisateur (protégé)
+  .post(authenticate, createTask);     // POST /api/tasks - Créer une tâche (protégé)
 
 router.route('/:id')
-  .get(getTaskById)      // GET /api/tasks/:id - Récupérer une tâche
-  .put(updateTask)       // PUT /api/tasks/:id - Modifier une tâche
-  .delete(deleteTask);   // DELETE /api/tasks/:id - Supprimer une tâche
+  .get(optionalAuthenticate, getTaskById)      // GET /api/tasks/:id - Récupérer une tâche (optionnel : publique ou propriétaire)
+  .put(authenticate, updateTask)               // PUT /api/tasks/:id - Modifier une tâche (protégé)
+  .delete(authenticate, deleteTask);           // DELETE /api/tasks/:id - Supprimer une tâche (protégé)
 
-// Routes pour les sous-tâches
-router.post('/:id/subtasks', addSubtask);  // POST /api/tasks/:id/subtasks
-
-// Routes pour les commentaires
-router.post('/:id/comments', addComment);  // POST /api/tasks/:id/comments
+// Route pour changer la visibilité
+router.patch('/:id/visibility', authenticate, toggleVisibility);  // PATCH /api/tasks/:id/visibility
 
 module.exports = router;

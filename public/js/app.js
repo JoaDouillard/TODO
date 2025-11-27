@@ -8,9 +8,13 @@ let currentTaskId = null;
 // Routes de l'application
 const routes = {
   '/': 'homePage',
+  '/register': 'registerPage',
+  '/login': 'loginPage',
   '/create': 'createPage',
   '/task/:id': 'viewPage',
-  '/edit/:id': 'editPage'
+  '/edit/:id': 'editPage',
+  '/my-tasks': 'myTasksPage',
+  '/public-tasks': 'publicTasksPage'
 };
 
 // Parser la route actuelle et extraire les paramètres
@@ -40,7 +44,7 @@ function router() {
     window[handler](...params);
   } else {
     console.error(`Handler ${handler} introuvable`);
-    window.location.href = '/';
+    navigate('/');
   }
 }
 
@@ -49,6 +53,7 @@ window.addEventListener('popstate', router);
 
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
+  updateHeader(); // Mettre à jour le header selon l'état de connexion
   router();
 });
 
@@ -60,3 +65,5 @@ function viewPage(taskId) {
 function editPage(taskId) {
   loadEditPage(taskId);
 }
+
+// Les fonctions myTasksPage() et publicTasksPage() sont définies dans tasks.js

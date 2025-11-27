@@ -9,7 +9,7 @@ async function loadViewPage(taskId) {
   currentTaskId = taskId;
 
   try {
-    const response = await fetch(`${API_URL}/${taskId}`);
+    const response = await fetchWithAuth(`${API_URL}/${taskId}`);
     const data = await response.json();
 
     if (!data.success) {
@@ -47,12 +47,17 @@ function renderViewPage(task) {
           <h2 class="text-3xl font-bold text-gray-800">
             📋 ${escapeHTML(task.titre)}
           </h2>
-          <button
-            onclick="navigate('/')"
-            class="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-          >
-            ✕
-          </button>
+          <div class="flex items-center gap-4">
+            <span class="${task.visibilite === 'publique' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'} text-xs px-3 py-1.5 rounded-full font-semibold border-2 shadow-sm">
+              ${task.visibilite === 'publique' ? '🌍 Publique' : '🔒 Privée'}
+            </span>
+            <button
+              onclick="navigate('/')"
+              class="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <!-- Description -->
@@ -64,29 +69,35 @@ function renderViewPage(task) {
         </div>
 
         <!-- Informations principales -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div>
-            <span class="text-sm text-gray-500">Statut</span>
-            <p class="font-semibold mt-1">
-              <span class="${getStatusClass(task.statut)} px-3 py-1 rounded-full text-sm">
-                ${getStatusLabel(task.statut)}
-              </span>
-            </p>
+            <span class="text-sm text-gray-500 block mb-2">Statut</span>
+            <span class="${getStatusClass(task.statut)} ${getStatusBorderClass(task.statut)} px-3 py-1.5 rounded-full text-sm font-semibold border-2 shadow-sm inline-block">
+              ${getStatusLabel(task.statut)}
+            </span>
           </div>
           <div>
-            <span class="text-sm text-gray-500">Priorité</span>
-            <p class="font-semibold ${getPriorityColor(task.priorite)} mt-1">
+            <span class="text-sm text-gray-500 block mb-2">Priorité</span>
+            <span class="${getPriorityBgClass(task.priorite)} ${getPriorityTextClass(task.priorite)} ${getPriorityBorderClass(task.priorite)} px-3 py-1.5 rounded-full text-sm font-bold border-2 shadow-sm inline-block">
               ${task.priorite.toUpperCase()}
-            </p>
+            </span>
           </div>
           <div>
-            <span class="text-sm text-gray-500">Échéance</span>
-            <p class="font-semibold mt-1">${formatDate(task.echeance)}</p>
+            <span class="text-sm text-gray-500 block mb-2">Catégorie</span>
+            <span class="inline-flex items-center bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full text-sm font-semibold">
+              📁 ${escapeHTML(task.categorie) || 'Aucune'}
+            </span>
           </div>
           <div>
-            <span class="text-sm text-gray-500">Catégorie</span>
-            <p class="font-semibold mt-1">${escapeHTML(task.categorie) || 'Aucune'}</p>
+            <span class="text-sm text-gray-500 block mb-2">Échéance</span>
+            <p class="font-semibold text-gray-800">📅 ${formatDate(task.echeance)}</p>
           </div>
+        </div>
+
+        <!-- Date de création -->
+        <div class="mb-6">
+          <span class="text-sm text-gray-500">Créée le</span>
+          <p class="text-gray-600 font-medium">🕐 ${formatDate(task.dateCreation)}</p>
         </div>
 
         <!-- Étiquettes -->
@@ -116,7 +127,7 @@ function renderViewPage(task) {
         <div class="mb-6">
           <div class="flex justify-between items-center mb-3">
             <h4 class="font-semibold text-gray-800">
-              Sous-tâches (${task.sousTaches ? task.sousTaches.length : 0})
+              Sous-tâches (<span id="subtasksCount">${task.sousTaches ? task.sousTaches.length : 0}</span>)
             </h4>
             <button
               onclick="showAddSubtaskModal()"
@@ -294,8 +305,21 @@ function hideAddSubtaskModal() {
 async function handleAddSubtask(event) {
   event.preventDefault();
 
+  const newSubtaskTitre = $('subtaskTitre').value.trim();
+
+  // Vérifier si une sous-tâche avec le même titre existe déjà
+  if (!currentTask.sousTaches) {
+    currentTask.sousTaches = [];
+  }
+
+  const existeDeja = currentTask.sousTaches.some(st => st.titre.toLowerCase() === newSubtaskTitre.toLowerCase());
+  if (existeDeja) {
+    showNotification('Une sous-tâche avec ce titre existe déjà', 'error');
+    return;
+  }
+
   const newSubtask = {
-    titre: $('subtaskTitre').value.trim(),
+    titre: newSubtaskTitre,
     statut: 'à faire'
   };
 
@@ -305,9 +329,6 @@ async function handleAddSubtask(event) {
   }
 
   // Ajouter la sous-tâche au tableau
-  if (!currentTask.sousTaches) {
-    currentTask.sousTaches = [];
-  }
   currentTask.sousTaches.push(newSubtask);
 
   // Mettre à jour la tâche sur le serveur
@@ -344,7 +365,7 @@ async function deleteSubtask(index) {
 // Mettre à jour la tâche sur le serveur
 async function updateTask() {
   try {
-    const response = await fetch(`${API_URL}/${currentTaskId}`, {
+    const response = await fetchWithAuth(`${API_URL}/${currentTaskId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -361,6 +382,13 @@ async function updateTask() {
 
     // Rafraîchir l'affichage des sous-tâches
     $('subtasksList').innerHTML = renderSubtasks(currentTask.sousTaches || []);
+
+    // Mettre à jour le compteur de sous-tâches
+    const countElement = $('subtasksCount');
+    if (countElement) {
+      countElement.textContent = currentTask.sousTaches ? currentTask.sousTaches.length : 0;
+    }
+
     showNotification('Mis à jour avec succès', 'success');
   } catch (error) {
     console.error('Erreur:', error);
@@ -375,7 +403,7 @@ async function deleteTaskAndRedirect(taskId) {
   }
 
   try {
-    const response = await fetch(`${API_URL}/${taskId}`, {
+    const response = await fetchWithAuth(`${API_URL}/${taskId}`, {
       method: 'DELETE'
     });
 

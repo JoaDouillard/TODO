@@ -70,7 +70,7 @@ sudo systemctl status mongod
 ```bash
 # 1. Cloner le repository
 git clone <url-du-repo>
-cd TP-note
+cd TODO
 
 # 2. Installer les dépendances
 npm install
