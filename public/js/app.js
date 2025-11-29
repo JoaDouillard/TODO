@@ -14,7 +14,8 @@ const routes = {
   '/task/:id': 'viewPage',
   '/edit/:id': 'editPage',
   '/my-tasks': 'myTasksPage',
-  '/public-tasks': 'publicTasksPage'
+  '/public-tasks': 'publicTasksPage',
+  '/admin': 'adminPage'
 };
 
 // Parser la route actuelle et extraire les paramètres
