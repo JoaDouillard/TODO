@@ -7,7 +7,11 @@ const {
   createTask,
   updateTask,
   toggleVisibility,
-  deleteTask
+  deleteTask,
+  addComment,
+  updateComment,
+  deleteComment,
+  voteComment
 } = require('../controllers/taskController');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
@@ -27,5 +31,11 @@ router.route('/:id')
 
 // Route pour changer la visibilité
 router.patch('/:id/visibility', authenticate, toggleVisibility);  // PATCH /api/tasks/:id/visibility
+
+// Routes pour les commentaires
+router.post('/:id/comments', authenticate, addComment);                        // POST /api/tasks/:id/comments
+router.put('/:id/comments/:commentId', authenticate, updateComment);           // PUT /api/tasks/:id/comments/:commentId
+router.delete('/:id/comments/:commentId', authenticate, deleteComment);        // DELETE /api/tasks/:id/comments/:commentId
+router.post('/:id/comments/:commentId/vote', authenticate, voteComment);       // POST /api/tasks/:id/comments/:commentId/vote
 
 module.exports = router;

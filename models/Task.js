@@ -16,32 +16,56 @@ const sousTacheSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
-// Schéma pour les commentaires
+// Schéma pour les commentaires (selon cahier des charges V2)
 const commentaireSchema = new mongoose.Schema({
   auteur: {
-    nom: {
-      type: String,
-      required: true
-    },
-    prenom: {
-      type: String,
-      required: true
-    },
-    email: {
-      type: String,
-      required: true,
-      match: [/^\S+@\S+\.\S+$/, 'Email invalide']
-    }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'L\'auteur est requis']
   },
-  date: {
-    type: Date,
-    default: Date.now
+  auteurNom: {
+    type: String,
+    required: [true, 'Le nom de l\'auteur est requis']
   },
   contenu: {
     type: String,
     required: [true, 'Le contenu du commentaire est requis'],
     maxlength: [1000, 'Le commentaire ne peut pas dépasser 1000 caractères']
-  }
+  },
+  dateCreation: {
+    type: Date,
+    default: Date.now
+  },
+  dateModification: {
+    type: Date
+  },
+  estModifie: {
+    type: Boolean,
+    default: false
+  },
+  estSupprime: {
+    type: Boolean,
+    default: false
+  },
+  dateSuppression: {
+    type: Date
+  },
+  suppressionPar: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  suppressionParNom: {
+    type: String
+  },
+  // Système de votes
+  votesPositifs: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  votesNegatifs: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, { _id: true });
 
 // Schéma pour l'historique des modifications (optionnel)
@@ -144,7 +168,7 @@ const taskSchema = new mongoose.Schema({
     type: String,
     trim: true,
     lowercase: true,
-    maxlength: [50, 'La catégorie ne peut pas dépasser 50 caractères']
+    maxlength: [15, 'La catégorie ne peut pas dépasser 15 caractères']
   },
   etiquettes: {
     type: [String],
@@ -221,11 +245,14 @@ taskSchema.pre('save', function(next) {
 });
 
 // Méthode d'instance pour ajouter un commentaire
-taskSchema.methods.ajouterCommentaire = function(auteur, contenu) {
+taskSchema.methods.ajouterCommentaire = function(auteurId, auteurNom, contenu) {
   this.commentaires.push({
-    auteur,
+    auteur: auteurId,
+    auteurNom,
     contenu,
-    date: new Date()
+    dateCreation: new Date(),
+    estModifie: false,
+    estSupprime: false
   });
   return this.save();
 };

@@ -401,3 +401,321 @@ exports.deleteTask = async (req, res) => {
     });
   }
 };
+
+// ========================================
+// GESTION DES COMMENTAIRES
+// ========================================
+
+// @desc    Ajouter un commentaire à une tâche
+// @route   POST /api/tasks/:id/comments
+// @access  Private
+exports.addComment = async (req, res) => {
+  try {
+    const { contenu } = req.body;
+
+    // Validation
+    if (!contenu || contenu.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Le contenu du commentaire est requis'
+      });
+    }
+
+    // Récupérer la tâche
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche non trouvée'
+      });
+    }
+
+    // Vérifier les permissions : propriétaire OU tâche publique
+    // Tout utilisateur connecté peut commenter ses propres tâches ET les tâches publiques
+    const isOwner = task.proprietaire.toString() === req.userId;
+    const isPublic = task.visibilite === 'publique';
+
+    // On autorise si c'est soit le propriétaire, soit une tâche publique
+    if (!isOwner && !isPublic) {
+      return res.status(403).json({
+        success: false,
+        error: 'Vous ne pouvez commenter que vos propres tâches ou des tâches publiques'
+      });
+    }
+
+    // Si on arrive ici, l'utilisateur a le droit de commenter
+
+    // Récupérer les infos de l'utilisateur
+    const User = require('../models/User');
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Ajouter le commentaire
+    const newComment = {
+      auteur: req.userId,
+      auteurNom: user.username,
+      contenu: contenu.trim(),
+      dateCreation: new Date(),
+      estModifie: false,
+      estSupprime: false
+    };
+
+    task.commentaires.push(newComment);
+    await task.save();
+
+    // Retourner le commentaire ajouté
+    const addedComment = task.commentaires[task.commentaires.length - 1];
+
+    res.status(201).json({
+      success: true,
+      message: 'Commentaire ajouté avec succès',
+      data: addedComment
+    });
+
+  } catch (error) {
+    console.error('Erreur addComment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de l\'ajout du commentaire',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Modifier un commentaire
+// @route   PUT /api/tasks/:id/comments/:commentId
+// @access  Private (auteur du commentaire uniquement)
+exports.updateComment = async (req, res) => {
+  try {
+    const { contenu } = req.body;
+    const { id, commentId } = req.params;
+
+    // Validation
+    if (!contenu || contenu.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Le contenu du commentaire est requis'
+      });
+    }
+
+    // Récupérer la tâche
+    const task = await Task.findById(id);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche non trouvée'
+      });
+    }
+
+    // Trouver le commentaire
+    const comment = task.commentaires.id(commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Commentaire non trouvé'
+      });
+    }
+
+    // Vérifier que l'utilisateur est l'auteur du commentaire
+    if (comment.auteur.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Vous ne pouvez modifier que vos propres commentaires'
+      });
+    }
+
+    // Vérifier que le commentaire n'est pas supprimé
+    if (comment.estSupprime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Impossible de modifier un commentaire supprimé'
+      });
+    }
+
+    // Mettre à jour le commentaire
+    comment.contenu = contenu.trim();
+    comment.dateModification = new Date();
+    comment.estModifie = true;
+
+    await task.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Commentaire modifié avec succès',
+      data: comment
+    });
+
+  } catch (error) {
+    console.error('Erreur updateComment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la modification du commentaire',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Supprimer un commentaire (soft delete)
+// @route   DELETE /api/tasks/:id/comments/:commentId
+// @access  Private (auteur du commentaire ou admin)
+exports.deleteComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+
+    // Récupérer la tâche
+    const task = await Task.findById(id);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche non trouvée'
+      });
+    }
+
+    // Trouver le commentaire
+    const comment = task.commentaires.id(commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Commentaire non trouvé'
+      });
+    }
+
+    // Vérifier les permissions
+    const User = require('../models/User');
+    const user = await User.findById(req.userId);
+
+    const isAuthor = comment.auteur.toString() === req.userId.toString();
+    const isAdmin = user && user.role === 'admin';
+
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Vous ne pouvez supprimer que vos propres commentaires'
+      });
+    }
+
+    // Soft delete
+    comment.estSupprime = true;
+    comment.dateSuppression = new Date();
+    comment.suppressionPar = req.userId;
+    comment.suppressionParNom = user.username; // Stocker le nom de l'utilisateur qui a supprimé
+
+    await task.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Commentaire supprimé avec succès'
+    });
+
+  } catch (error) {
+    console.error('Erreur deleteComment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la suppression du commentaire',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Voter sur un commentaire (pouce bleu ou rouge)
+// @route   POST /api/tasks/:id/comments/:commentId/vote
+// @access  Private
+exports.voteComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { type } = req.body; // 'up' ou 'down'
+
+    if (!type || (type !== 'up' && type !== 'down')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Type de vote invalide (up ou down)'
+      });
+    }
+
+    // Récupérer la tâche
+    const task = await Task.findById(id);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche non trouvée'
+      });
+    }
+
+    // Trouver le commentaire
+    const comment = task.commentaires.id(commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Commentaire non trouvé'
+      });
+    }
+
+    // Vérifier que le commentaire n'est pas supprimé
+    if (comment.estSupprime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Impossible de voter sur un commentaire supprimé'
+      });
+    }
+
+    // Initialiser les tableaux de votes s'ils n'existent pas
+    if (!comment.votesPositifs) comment.votesPositifs = [];
+    if (!comment.votesNegatifs) comment.votesNegatifs = [];
+
+    // Vérifier si l'utilisateur a déjà voté pour ce type
+    const hasVotedUp = comment.votesPositifs.some(userId => userId.toString() === req.userId.toString());
+    const hasVotedDown = comment.votesNegatifs.some(userId => userId.toString() === req.userId.toString());
+
+    // Retirer l'utilisateur des deux listes
+    comment.votesPositifs = comment.votesPositifs.filter(
+      userId => userId.toString() !== req.userId.toString()
+    );
+    comment.votesNegatifs = comment.votesNegatifs.filter(
+      userId => userId.toString() !== req.userId.toString()
+    );
+
+    // Ajouter le vote UNIQUEMENT si l'utilisateur n'avait pas déjà voté pour ce même type
+    // Si l'utilisateur clique sur le même vote qu'il avait déjà donné, on l'annule (on ne l'ajoute pas)
+    if (type === 'up' && !hasVotedUp) {
+      comment.votesPositifs.push(req.userId);
+    } else if (type === 'down' && !hasVotedDown) {
+      comment.votesNegatifs.push(req.userId);
+    }
+
+    await task.save();
+
+    // Calculer le score
+    const score = comment.votesPositifs.length - comment.votesNegatifs.length;
+
+    res.status(200).json({
+      success: true,
+      message: 'Vote enregistré avec succès',
+      data: {
+        votesPositifs: comment.votesPositifs.length,
+        votesNegatifs: comment.votesNegatifs.length,
+        score
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur voteComment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors du vote',
+      message: error.message
+    });
+  }
+};

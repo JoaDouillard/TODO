@@ -18,6 +18,28 @@ async function loadEditPage(taskId) {
     }
 
     editingTask = data.data;
+
+    // Vérifier que l'utilisateur est bien le propriétaire de la tâche
+    const currentUser = getCurrentUser();
+    const taskIsOwned = currentUser && editingTask.proprietaire &&
+      (editingTask.proprietaire._id === currentUser._id || editingTask.proprietaire === currentUser._id);
+
+    if (!taskIsOwned) {
+      $('app').innerHTML = `
+        <div class="max-w-2xl mx-auto text-center py-12">
+          <p class="text-red-500 text-xl mb-4">🚫 Accès refusé</p>
+          <p class="text-gray-600 mb-6">Vous n'avez pas les droits pour modifier cette tâche.</p>
+          <button
+            onclick="navigate('/task/${taskId}')"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
+          >
+            Voir la tâche
+          </button>
+        </div>
+      `;
+      return;
+    }
+
     renderEditPage(editingTask);
   } catch (error) {
     console.error('Erreur:', error);
@@ -139,11 +161,13 @@ async function renderEditPage(task) {
           <div class="relative">
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Catégorie
+              <span class="text-xs text-gray-500 ml-2">(<span id="categorieLengthEdit">0</span>/15)</span>
             </label>
             <input
               type="text"
               id="categorie"
               autocomplete="off"
+              maxlength="15"
               value="${escapeHTML(task.categorie) || ''}"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Ex: Travail, Personnel..."
@@ -272,6 +296,19 @@ async function renderEditPage(task) {
   $('editTaskForm').addEventListener('submit', handleEditTask);
   $('categorie').addEventListener('input', handleCategorieInputEdit);
   $('categorie').addEventListener('focus', handleCategorieInputEdit);
+
+  // Attacher l'event listener pour le compteur de caractères de catégorie
+  const categorieInput = $('categorie');
+  const categorieCounter = $('categorieLengthEdit');
+
+  // Initialiser le compteur avec la longueur actuelle
+  if (categorieInput && categorieCounter) {
+    categorieCounter.textContent = categorieInput.value.length;
+
+    categorieInput.addEventListener('input', (e) => {
+      categorieCounter.textContent = e.target.value.length;
+    });
+  }
 
   // Fermer les suggestions si on clique ailleurs
   document.addEventListener('click', (e) => {

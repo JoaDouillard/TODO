@@ -30,6 +30,15 @@ async function createPage() {
   $('categorie').addEventListener('input', handleCategorieInput);
   $('categorie').addEventListener('focus', handleCategorieInput);
 
+  // Attacher l'event listener pour le compteur de caractères de catégorie
+  $('categorie').addEventListener('input', (e) => {
+    const length = e.target.value.length;
+    const counter = $('categorieLength');
+    if (counter) {
+      counter.textContent = length;
+    }
+  });
+
   // Fermer les suggestions si on clique ailleurs
   document.addEventListener('click', (e) => {
     if (e.target.id !== 'categorie') {

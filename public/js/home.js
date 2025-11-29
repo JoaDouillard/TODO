@@ -139,7 +139,12 @@ function applyFilters() {
     return true;
   });
 
-  displayTasks(filteredTasks);
+  // Afficher avec la fonction appropriée selon le mode
+  if (isAuthenticated()) {
+    displayTasks(filteredTasks);
+  } else {
+    displayVisitorTasks(filteredTasks);
+  }
 }
 
 // Afficher les tâches
@@ -224,6 +229,7 @@ async function loadPublicTasksForVisitor() {
 
     if (data.success) {
       const publicTasks = data.data || [];
+      allTasks = publicTasks; // Stocker pour la recherche
 
       // Modifier le titre de la section
       const titleElement = document.querySelector('#app h2') || document.querySelector('#app .text-3xl');
@@ -231,11 +237,8 @@ async function loadPublicTasksForVisitor() {
         titleElement.textContent = '🌍 Aperçu des Tâches Publiques';
       }
 
-      // Masquer les filtres en mode visiteur
-      const filtersSection = document.querySelector('.bg-white.rounded-lg.shadow-md.p-6.mb-6');
-      if (filtersSection) {
-        filtersSection.style.display = 'none';
-      }
+      // Attacher les événements de recherche pour visiteurs
+      attachEventListeners();
 
       // Afficher un message d'invitation
       const container = $('tasksList');
@@ -258,7 +261,8 @@ async function loadPublicTasksForVisitor() {
         return;
       }
 
-      // Afficher les tâches publiques
+      // Afficher les catégories et les tâches publiques
+      displayCategoriesButtons();
       displayVisitorTasks(publicTasks);
 
     } else {
