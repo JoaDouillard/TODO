@@ -19,7 +19,6 @@ function adminPage() {
         <p class="text-gray-600">Gestion des utilisateurs</p>
       </div>
 
-      <!-- Barre de recherche et filtres -->
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -60,7 +59,6 @@ function adminPage() {
         </div>
       </div>
 
-      <!-- Bouton Créer un utilisateur -->
       <div class="mb-6">
         <button
           onclick="openCreateUserModal()"
@@ -70,7 +68,6 @@ function adminPage() {
         </button>
       </div>
 
-      <!-- Tableau des utilisateurs -->
       <div class="bg-white rounded-lg shadow overflow-hidden">
         <div id="users-table-container">
           <div class="p-8 text-center">
@@ -81,7 +78,6 @@ function adminPage() {
       </div>
     </div>
 
-    <!-- Modal Créer/Modifier utilisateur -->
     <div id="user-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <h2 id="user-modal-title" class="text-2xl font-bold text-gray-900 mb-4">Créer un utilisateur</h2>
@@ -172,7 +168,6 @@ function adminPage() {
       </div>
     </div>
 
-    <!-- Modal Confirmation Suppression -->
     <div id="delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Confirmer la suppression</h2>
@@ -205,7 +200,6 @@ function adminPage() {
 let allUsers = [];
 let userToDeleteId = null;
 
-// Charger tous les utilisateurs
 async function loadAllUsers() {
   try {
     const token = localStorage.getItem('taskManager_token');
@@ -285,7 +279,6 @@ function filterUsers() {
   displayUsersTable(filtered);
 }
 
-// Afficher le tableau des utilisateurs
 function displayUsersTable(users) {
   const container = $('users-table-container');
   if (!container) return;

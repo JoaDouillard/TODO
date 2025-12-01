@@ -1,40 +1,32 @@
-// ========================================
 // AUTHENTIFICATION - LOGIQUE
-// ========================================
 
 // Clés localStorage
 const TOKEN_KEY = 'taskManager_token';
 const USER_KEY = 'taskManager_user';
 
-// Fonction pour sauvegarder les données de connexion
 function saveAuthData(token, user) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-// Fonction pour récupérer le token
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-// Fonction pour récupérer l'utilisateur
 function getCurrentUser() {
   const userJson = localStorage.getItem(USER_KEY);
   return userJson ? JSON.parse(userJson) : null;
 }
 
-// Fonction pour vérifier si l'utilisateur est connecté
 function isAuthenticated() {
   return !!getToken();
 }
 
-// Fonction pour vérifier si l'utilisateur est admin
 function isAdmin() {
   const user = getCurrentUser();
   return user && user.role === 'admin';
 }
 
-// Fonction pour se déconnecter
 function logout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -42,7 +34,6 @@ function logout() {
   navigate('/');
 }
 
-// Fonction pour faire des requêtes authentifiées
 async function fetchWithAuth(url, options = {}) {
   const token = getToken();
 
@@ -65,14 +56,10 @@ async function fetchWithAuth(url, options = {}) {
   return fetch(url, mergedOptions);
 }
 
-// ========================================
-// PAGE D'INSCRIPTION
-// ========================================
 
 let registerTemplate;
 
 async function registerPage() {
-  // Si déjà connecté, rediriger vers la page d'accueil
   if (isAuthenticated()) {
     navigate('/my-tasks');
     return;
@@ -137,14 +124,10 @@ async function handleRegisterSubmit(event) {
   }
 }
 
-// ========================================
-// PAGE DE CONNEXION
-// ========================================
 
 let loginTemplate;
 
 async function loginPage() {
-  // Si déjà connecté, rediriger vers la page d'accueil
   if (isAuthenticated()) {
     navigate('/my-tasks');
     return;
@@ -199,9 +182,7 @@ async function handleLoginSubmit(event) {
   }
 }
 
-// ========================================
 // MISE À JOUR DU HEADER
-// ========================================
 
 function updateHeader() {
   const user = getCurrentUser();
@@ -222,7 +203,6 @@ function updateHeader() {
       </div>
     `;
 
-    // Créer la pop-up utilisateur en bas à droite (si elle n'existe pas déjà)
     let userPopup = document.getElementById('userPopup');
     if (!userPopup) {
       userPopup = document.createElement('div');
@@ -276,7 +256,6 @@ function updateHeader() {
   }
 }
 
-// Toggle du menu utilisateur (pop-up)
 function toggleUserMenu() {
   const menu = document.getElementById('userMenu');
   if (menu) {
@@ -294,5 +273,4 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Mettre à jour le header au chargement
 document.addEventListener('DOMContentLoaded', updateHeader);

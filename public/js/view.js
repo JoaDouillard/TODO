@@ -1,10 +1,6 @@
-// ========================================
-// PAGE DE VISUALISATION D'UNE TÂCHE
-// ========================================
 
 let currentTask = null;
 
-// Charger la page de visualisation
 async function loadViewPage(taskId) {
   currentTaskId = taskId;
 
@@ -35,7 +31,6 @@ async function loadViewPage(taskId) {
   }
 }
 
-// Afficher la page de visualisation
 function renderViewPage(task) {
   const appContainer = $('app');
   const currentUser = getCurrentUser();
@@ -44,9 +39,7 @@ function renderViewPage(task) {
   appContainer.innerHTML = `
     <div class="max-w-7xl mx-auto">
       <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <!-- Colonne gauche : Détails de la tâche (3/5) -->
         <div class="lg:col-span-3 bg-white rounded-lg shadow-lg p-8">
-        <!-- En-tête -->
         <div class="flex justify-between items-start mb-6">
           <h2 class="text-3xl font-bold text-gray-800">
             📋 ${escapeHTML(task.titre)}
@@ -64,7 +57,6 @@ function renderViewPage(task) {
           </div>
         </div>
 
-        <!-- Description -->
         <div class="bg-gray-50 rounded-lg p-4 mb-6">
           <h4 class="font-semibold text-gray-700 mb-2">Description</h4>
           <p class="text-gray-600">
@@ -72,7 +64,6 @@ function renderViewPage(task) {
           </p>
         </div>
 
-        <!-- Informations principales -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div>
             <span class="text-sm text-gray-500 block mb-2">Statut</span>
@@ -98,13 +89,21 @@ function renderViewPage(task) {
           </div>
         </div>
 
-        <!-- Date de création -->
-        <div class="mb-6">
-          <span class="text-sm text-gray-500">Créée le</span>
-          <p class="text-gray-600 font-medium">🕐 ${formatDate(task.dateCreation)}</p>
+        <div class="mb-6 flex justify-between items-start">
+          <div>
+            <span class="text-sm text-gray-500">Créée le</span>
+            <p class="text-gray-600 font-medium">🕐 ${formatDate(task.dateCreation)}</p>
+          </div>
+          ${taskIsOwned && task.historiqueModifications && task.historiqueModifications.length > 0 ? `
+            <button
+              onclick="navigate('/task/${task._id}/history')"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              📜 Historique (${task.historiqueModifications.length})
+            </button>
+          ` : ''}
         </div>
 
-        <!-- Étiquettes -->
         ${task.etiquettes && task.etiquettes.length > 0 ? `
           <div class="mb-6">
             <span class="text-sm text-gray-500 block mb-2">Étiquettes</span>
@@ -118,7 +117,6 @@ function renderViewPage(task) {
           </div>
         ` : ''}
 
-        <!-- Auteur -->
         <div class="bg-blue-50 rounded-lg p-4 mb-6">
           <h4 class="font-semibold text-blue-800 mb-2">Auteur</h4>
           <p class="text-blue-700 font-medium">
@@ -127,7 +125,6 @@ function renderViewPage(task) {
           <p class="text-blue-600 text-sm">${escapeHTML(task.auteur.email)}</p>
         </div>
 
-        <!-- Sous-tâches -->
         <div class="mb-6">
           <div class="flex justify-between items-center mb-3">
             <h4 class="font-semibold text-gray-800">
@@ -148,7 +145,6 @@ function renderViewPage(task) {
           </div>
         </div>
 
-        <!-- Boutons d'action -->
         <div class="flex gap-4 pt-4 border-t">
           ${taskIsOwned ? `
             <button
@@ -172,16 +168,13 @@ function renderViewPage(task) {
           </button>
         </div>
         </div>
-        <!-- Fin colonne gauche : Détails de la tâche -->
 
-        <!-- Colonne droite : Commentaires (2/5) -->
         <div class="lg:col-span-2">
           <div class="bg-white rounded-lg shadow-lg p-6 sticky top-4" style="max-height: calc(100vh - 2rem);">
             <h4 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">
               💬 Commentaires (<span id="commentsCount">${task.commentaires ? task.commentaires.filter(c => !c.estSupprime).length : 0}</span>)
             </h4>
 
-            <!-- Formulaire d'ajout de commentaire -->
             ${task.visibilite === 'publique' || taskIsOwned ? `
               <div class="mb-4">
                 <textarea
@@ -205,17 +198,14 @@ function renderViewPage(task) {
               </div>
             ` : ''}
 
-            <!-- Liste des commentaires avec hauteur fixe et scroll -->
             <div id="commentsList" class="space-y-3" style="max-height: 400px; overflow-y: auto;">
               ${renderComments(task.commentaires || [], task)}
             </div>
           </div>
         </div>
-        <!-- Fin colonne droite -->
       </div>
     </div>
 
-    <!-- Modal pour ajouter une sous-tâche -->
     <div id="addSubtaskModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
         <h3 class="text-xl font-bold mb-4">Ajouter une sous-tâche</h3>
@@ -275,18 +265,37 @@ function renderViewPage(task) {
   }
 }
 
-// Afficher les sous-tâches
 function renderSubtasks(subtasks) {
   if (!subtasks || subtasks.length === 0) {
     return '<p class="text-gray-500 text-sm py-4">Aucune sous-tâche</p>';
   }
 
+  const currentUser = getCurrentUser();
+  const taskIsOwned = currentUser && currentTask.proprietaire &&
+    (currentTask.proprietaire._id === currentUser._id || currentTask.proprietaire === currentUser._id);
+
   return subtasks.map((subtask, index) => {
     const isCompleted = subtask.statut === 'terminée';
+    const priorityNumber = index + 1;
 
     return `
-      <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg group hover:bg-gray-100 transition-colors">
-        <!-- Checkbox -->
+      <div
+        class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg group hover:bg-gray-100 transition-colors ${taskIsOwned ? 'cursor-move' : ''}"
+        draggable="${taskIsOwned ? 'true' : 'false'}"
+        data-index="${index}"
+        ondragstart="handleDragStart(event)"
+        ondragover="handleDragOver(event)"
+        ondrop="handleDrop(event)"
+        ondragend="handleDragEnd(event)"
+      >
+        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center" title="Priorité ${priorityNumber}">
+          ${priorityNumber}
+        </span>
+
+        ${taskIsOwned ? `
+          <span class="text-gray-400 cursor-move" title="Glisser pour réorganiser">⋮⋮</span>
+        ` : ''}
+
         <button
           onclick="toggleSubtask(${index})"
           class="flex-shrink-0 w-6 h-6 rounded border-2 ${
@@ -298,17 +307,14 @@ function renderSubtasks(subtasks) {
           ${isCompleted ? '<span class="text-white text-sm">✓</span>' : ''}
         </button>
 
-        <!-- Titre -->
         <span class="flex-1 ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
           ${escapeHTML(subtask.titre)}
         </span>
 
-        <!-- Date -->
         <span class="text-xs text-gray-500">
           ${formatDate(subtask.echeance)}
         </span>
 
-        <!-- Bouton supprimer (visible au survol si terminée) -->
         ${isCompleted ? `
           <button
             onclick="deleteSubtask(${index})"
@@ -323,7 +329,6 @@ function renderSubtasks(subtasks) {
   }).join('');
 }
 
-// Afficher le modal d'ajout de sous-tâche
 function showAddSubtaskModal() {
   // Vérifier si l'utilisateur est connecté
   const currentUser = getCurrentUser();
@@ -354,7 +359,6 @@ function hideAddSubtaskModal() {
   $('addSubtaskModal').classList.add('hidden');
 }
 
-// Ajouter une sous-tâche
 async function handleAddSubtask(event) {
   event.preventDefault();
 
@@ -417,7 +421,6 @@ async function toggleSubtask(index) {
   await updateTask();
 }
 
-// Supprimer une sous-tâche (uniquement si terminée)
 async function deleteSubtask(index) {
   // Vérifier si l'utilisateur est connecté
   const currentUser = getCurrentUser();
@@ -447,7 +450,6 @@ async function deleteSubtask(index) {
   await updateTask();
 }
 
-// Mettre à jour la tâche sur le serveur
 async function updateTask() {
   try {
     const response = await fetchWithAuth(`${API_URL}/${currentTaskId}`, {
@@ -481,7 +483,6 @@ async function updateTask() {
   }
 }
 
-// Supprimer la tâche et rediriger
 async function deleteTaskAndRedirect(taskId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
     return;
@@ -504,18 +505,14 @@ async function deleteTaskAndRedirect(taskId) {
   }
 }
 
-// ========================================
 // GESTION DES COMMENTAIRES
-// ========================================
 
-// Vérifier si l'utilisateur est propriétaire
 function isOwner(task) {
   const user = getCurrentUser();
   if (!user || !task.proprietaire) return false;
   return task.proprietaire._id === user._id || task.proprietaire === user._id;
 }
 
-// Afficher les commentaires
 function renderComments(comments, task) {
   if (!comments || comments.length === 0) {
     return '<p class="text-gray-500 text-sm py-4 text-center">Aucun commentaire</p>';
@@ -538,7 +535,6 @@ function renderComments(comments, task) {
   const sortedComments = [...sortedActiveComments, ...deletedComments];
 
   return sortedComments.map(comment => {
-    // Si le commentaire est supprimé
     if (comment.estSupprime) {
       const suppressionText = comment.suppressionParNom
         ? `Commentaire supprimé par @${escapeHTML(comment.suppressionParNom)}`
@@ -555,7 +551,6 @@ function renderComments(comments, task) {
     const isAuthor = currentUser && comment.auteur === currentUser._id;
     const isAdmin = currentUser && currentUser.role === 'admin';
 
-    // Calculer le score et vérifier si l'utilisateur a voté
     const score = (comment.votesPositifs?.length || 0) - (comment.votesNegatifs?.length || 0);
     const userVotedUp = currentUser && comment.votesPositifs?.some(id => id === currentUser._id);
     const userVotedDown = currentUser && comment.votesNegatifs?.some(id => id === currentUser._id);
@@ -576,7 +571,6 @@ function renderComments(comments, task) {
           </div>
         </div>
 
-        <!-- Système de votes -->
         ${currentUser ? `
           <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200">
             <button
@@ -599,7 +593,6 @@ function renderComments(comments, task) {
           </div>
         ` : ''}
 
-        <!-- Contenu du commentaire -->
         <div id="comment-content-${comment._id}">
           ${comment.contenu.length > 100 ? `
             <div id="comment-short-${comment._id}" class="text-gray-700" style="max-height: 3em; overflow: hidden; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.5em; margin: 0; padding: 0;">${escapeHTML(comment.contenu)}</div>
@@ -609,7 +602,6 @@ function renderComments(comments, task) {
           `}
         </div>
 
-        <!-- Formulaire d'édition (caché par défaut) -->
         <div id="comment-edit-${comment._id}" class="hidden mb-2">
           <textarea
             id="comment-edit-input-${comment._id}"
@@ -639,7 +631,6 @@ function renderComments(comments, task) {
           </div>
         </div>
 
-        <!-- Boutons d'action -->
         <div class="flex justify-end gap-2 mt-2">
           ${comment.contenu.length > 100 ? `
             <button
@@ -672,7 +663,6 @@ function renderComments(comments, task) {
   }).join('');
 }
 
-// Ajouter un commentaire
 async function addComment() {
   // Vérifier si l'utilisateur est connecté
   const currentUser = getCurrentUser();
@@ -759,7 +749,6 @@ async function saveEditComment(commentId) {
   }
 }
 
-// Supprimer un commentaire
 async function deleteComment(commentId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ?')) {
     return;
@@ -817,7 +806,6 @@ async function voteComment(commentId, type) {
   }
 }
 
-// Toggle expand/collapse comment
 function toggleCommentExpand(commentId) {
   const shortText = $(`comment-short-${commentId}`);
   const fullText = $(`comment-full-${commentId}`);
@@ -836,7 +824,6 @@ function toggleCommentExpand(commentId) {
   }
 }
 
-// Mettre à jour le compteur de caractères pendant l'édition
 function updateEditCharCount(commentId) {
   const input = $(`comment-edit-input-${commentId}`);
   const counter = $(`comment-edit-length-${commentId}`);
@@ -845,3 +832,86 @@ function updateEditCharCount(commentId) {
   }
 }
 
+let draggedElement = null;
+
+function handleDragStart(event) {
+  draggedElement = event.target;
+  event.target.style.opacity = '0.4';
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/html', event.target.innerHTML);
+}
+
+function handleDragOver(event) {
+  if (event.preventDefault) {
+    event.preventDefault();
+  }
+  event.dataTransfer.dropEffect = 'move';
+
+  const target = event.target.closest('[draggable="true"]');
+  if (target && target !== draggedElement) {
+    target.style.borderTop = '2px solid #3b82f6';
+  }
+
+  return false;
+}
+
+function handleDrop(event) {
+  if (event.stopPropagation) {
+    event.stopPropagation();
+  }
+
+  const target = event.target.closest('[draggable="true"]');
+
+  if (draggedElement !== target && target) {
+    const draggedIndex = parseInt(draggedElement.getAttribute('data-index'));
+    const targetIndex = parseInt(target.getAttribute('data-index'));
+
+    reorderSubtasks(draggedIndex, targetIndex);
+  }
+
+  target.style.borderTop = '';
+
+  return false;
+}
+
+function handleDragEnd(event) {
+  event.target.style.opacity = '1';
+
+  document.querySelectorAll('[draggable="true"]').forEach(item => {
+    item.style.borderTop = '';
+  });
+}
+
+async function reorderSubtasks(fromIndex, toIndex) {
+  if (!currentTask || !currentTask.sousTaches) return;
+
+  const subtasks = [...currentTask.sousTaches];
+  const [movedItem] = subtasks.splice(fromIndex, 1);
+  subtasks.splice(toIndex, 0, movedItem);
+
+  try {
+    const response = await fetchWithAuth(`${API_URL}/${currentTaskId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sousTaches: subtasks
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Erreur lors de la réorganisation');
+    }
+
+    const result = await response.json();
+    currentTask = result.data;
+
+    $('subtasksList').innerHTML = renderSubtasks(currentTask.sousTaches || []);
+
+    showNotification('Ordre mis à jour', 'success');
+  } catch (error) {
+    console.error('Erreur:', error);
+    showNotification('Erreur : ' + error.message, 'error');
+  }
+}

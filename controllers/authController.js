@@ -40,7 +40,6 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Créer l'utilisateur
     const user = new User({
       nom,
       prenom,
@@ -147,7 +146,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Récupérer le profil de l'utilisateur connecté
 exports.getMe = async (req, res) => {
   try {
     // req.user est ajouté par le middleware authenticate
@@ -179,7 +177,6 @@ exports.logout = async (req, res) => {
   try {
     // Avec JWT, la déconnexion se fait principalement côté client
     // en supprimant le token du localStorage
-    // On peut ajouter ici une logique de blacklist de tokens si nécessaire
 
     res.json({
       success: true,

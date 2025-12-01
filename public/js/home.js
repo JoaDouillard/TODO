@@ -1,13 +1,9 @@
-// ========================================
-// PAGE D'ACCUEIL - LOGIQUE
-// ========================================
 
 let allTasks = [];
 let homeTemplate, taskCardTemplate;
 
 // Fonction appelée par le router
 function homePage() {
-  // Si l'utilisateur est connecté, rediriger vers "Mes Tâches"
   if (isAuthenticated()) {
     navigate('/my-tasks');
     return;
@@ -36,7 +32,6 @@ function attachEventListeners() {
   $('searchCategorie').addEventListener('input', applyFilters);
 }
 
-// Charger toutes les tâches
 async function loadTasks() {
   try {
     const response = await fetchWithAuth(API_URL);
@@ -60,7 +55,6 @@ async function loadTasks() {
   }
 }
 
-// Afficher les boutons de catégories
 function displayCategoriesButtons() {
   const categories = [...new Set(allTasks.map(task => task.categorie).filter(cat => cat))];
   const container = $('categoriesButtons');
@@ -147,7 +141,6 @@ function applyFilters() {
   }
 }
 
-// Afficher les tâches
 function displayTasks(tasks) {
   const container = $('tasksList');
 
@@ -194,7 +187,6 @@ function displayTasks(tasks) {
   container.innerHTML = tasksData.map(taskData => taskCardTemplate(taskData)).join('');
 }
 
-// Supprimer une tâche
 async function deleteTask(taskId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
     return;
@@ -217,9 +209,7 @@ async function deleteTask(taskId) {
   }
 }
 
-// ========================================
 // MODE VISITEUR
-// ========================================
 
 async function loadPublicTasksForVisitor() {
   try {

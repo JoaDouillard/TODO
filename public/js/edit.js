@@ -1,11 +1,7 @@
-// ========================================
-// PAGE DE MODIFICATION D'UNE TÂCHE
-// ========================================
 
 let editingTask = null;
 let allCategoriesEdit = [];
 
-// Charger la page de modification
 async function loadEditPage(taskId) {
   currentTaskId = taskId;
 
@@ -58,7 +54,6 @@ async function loadEditPage(taskId) {
   }
 }
 
-// Afficher la page de modification
 async function renderEditPage(task) {
   const appContainer = $('app');
 
@@ -72,7 +67,6 @@ async function renderEditPage(task) {
   appContainer.innerHTML = `
     <div class="max-w-3xl mx-auto">
       <div class="bg-white rounded-lg shadow-lg p-8">
-        <!-- En-tête -->
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-3xl font-bold text-gray-800">✏️ Modifier la tâche</h2>
           <div class="flex items-center gap-4">
@@ -91,10 +85,8 @@ async function renderEditPage(task) {
           </div>
         </div>
 
-        <!-- Formulaire -->
         <form id="editTaskForm" class="space-y-6">
           <input type="hidden" id="visibilite" value="${task.visibilite || 'privée'}">
-          <!-- Titre -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Titre <span class="text-red-500">*</span>
@@ -108,7 +100,6 @@ async function renderEditPage(task) {
             >
           </div>
 
-          <!-- Description -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Description
@@ -120,9 +111,7 @@ async function renderEditPage(task) {
             >${escapeHTML(task.description) || ''}</textarea>
           </div>
 
-          <!-- Statut et Priorité -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Statut -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Statut <span class="text-red-500">*</span>
@@ -139,7 +128,6 @@ async function renderEditPage(task) {
               </select>
             </div>
 
-            <!-- Priorité -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Priorité <span class="text-red-500">*</span>
@@ -157,7 +145,6 @@ async function renderEditPage(task) {
             </div>
           </div>
 
-          <!-- Catégorie -->
           <div class="relative">
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Catégorie
@@ -175,7 +162,6 @@ async function renderEditPage(task) {
             <div id="categoriesSuggestionsEdit" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
           </div>
 
-          <!-- Échéance -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Échéance
@@ -188,7 +174,6 @@ async function renderEditPage(task) {
             >
           </div>
 
-          <!-- Étiquettes -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Étiquettes (séparées par /)
@@ -202,7 +187,6 @@ async function renderEditPage(task) {
             >
           </div>
 
-          <!-- Sous-tâches -->
           <div class="border-t pt-6">
             <div class="flex justify-between items-center mb-3">
               <h4 class="font-semibold text-gray-800">
@@ -222,7 +206,6 @@ async function renderEditPage(task) {
             </div>
           </div>
 
-          <!-- Boutons -->
           <div class="flex gap-4 pt-4">
             <button
               type="submit"
@@ -242,7 +225,6 @@ async function renderEditPage(task) {
       </div>
     </div>
 
-    <!-- Modal pour ajouter une sous-tâche -->
     <div id="addSubtaskModalEdit" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
         <h3 class="text-xl font-bold mb-4">Ajouter une sous-tâche</h3>
@@ -318,7 +300,6 @@ async function renderEditPage(task) {
   });
 }
 
-// Charger les catégories depuis l'API
 async function loadCategoriesEdit() {
   try {
     const response = await fetchWithAuth('http://localhost:3000/api/categories');
@@ -363,7 +344,6 @@ function handleCategorieInputEdit(event) {
   }
 }
 
-// Afficher les suggestions de catégories
 function displayCategoriesSuggestionsEdit(categories) {
   const suggestions = $('categoriesSuggestionsEdit');
 
@@ -393,7 +373,6 @@ function hideCategoriesSuggestionsEdit() {
   }
 }
 
-// Toggle visibilité (formulaire de modification)
 function toggleVisibiliteEdit() {
   const visibiliteInput = $('visibilite');
   const toggleBtn = $('visibiliteToggleBtnEdit');
@@ -409,7 +388,6 @@ function toggleVisibiliteEdit() {
   }
 }
 
-// Afficher les sous-tâches en mode édition
 function renderSubtasksEdit(subtasks) {
   if (!subtasks || subtasks.length === 0) {
     return '<p class="text-gray-500 text-sm py-4">Aucune sous-tâche</p>';
@@ -420,7 +398,6 @@ function renderSubtasksEdit(subtasks) {
 
     return `
       <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg group hover:bg-gray-100 transition-colors">
-        <!-- Checkbox -->
         <button
           type="button"
           onclick="toggleSubtaskEdit(${index})"
@@ -433,17 +410,14 @@ function renderSubtasksEdit(subtasks) {
           ${isCompleted ? '<span class="text-white text-sm">✓</span>' : ''}
         </button>
 
-        <!-- Titre -->
         <span class="flex-1 ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
           ${escapeHTML(subtask.titre)}
         </span>
 
-        <!-- Date -->
         <span class="text-xs text-gray-500">
           ${formatDate(subtask.echeance)}
         </span>
 
-        <!-- Bouton supprimer (visible au survol si terminée) -->
         ${isCompleted ? `
           <button
             type="button"
@@ -459,7 +433,6 @@ function renderSubtasksEdit(subtasks) {
   }).join('');
 }
 
-// Afficher le modal d'ajout de sous-tâche
 function showAddSubtaskModalEdit() {
   $('addSubtaskModalEdit').classList.remove('hidden');
   $('subtaskTitreEdit').value = '';
@@ -474,7 +447,6 @@ function hideAddSubtaskModalEdit() {
   $('addSubtaskModalEdit').classList.add('hidden');
 }
 
-// Ajouter une sous-tâche
 function handleAddSubtaskEdit(event) {
   event.preventDefault();
 
@@ -513,7 +485,6 @@ function toggleSubtaskEdit(index) {
   $('subtasksListEdit').innerHTML = renderSubtasksEdit(editingTask.sousTaches);
 }
 
-// Supprimer une sous-tâche
 function deleteSubtaskEdit(index) {
   if (!editingTask.sousTaches || !editingTask.sousTaches[index]) {
     return;

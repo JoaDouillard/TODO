@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Schéma pour les sous-tâches
 const sousTacheSchema = new mongoose.Schema({
   titre: {
     type: String,
@@ -16,7 +15,6 @@ const sousTacheSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
-// Schéma pour les commentaires (selon cahier des charges V2)
 const commentaireSchema = new mongoose.Schema({
   auteur: {
     type: mongoose.Schema.Types.ObjectId,
@@ -68,7 +66,6 @@ const commentaireSchema = new mongoose.Schema({
   }]
 }, { _id: true });
 
-// Schéma pour l'historique des modifications (optionnel)
 const historiqueSchema = new mongoose.Schema({
   champModifie: {
     type: String,
@@ -80,13 +77,19 @@ const historiqueSchema = new mongoose.Schema({
   nouvelleValeur: {
     type: mongoose.Schema.Types.Mixed
   },
+  modifiePar: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  modifieParNom: {
+    type: String
+  },
   date: {
     type: Date,
     default: Date.now
   }
 }, { _id: true });
 
-// Schéma principal de la tâche
 const taskSchema = new mongoose.Schema({
   titre: {
     type: String,
@@ -107,7 +110,6 @@ const taskSchema = new mongoose.Schema({
     type: Date,
     validate: {
       validator: function(value) {
-        // Si une échéance est définie, elle doit être dans le futur (sauf si la tâche est déjà créée)
         if (!value) return true;
         return true; // On accepte toutes les dates pour permettre la modification
       },
@@ -187,7 +189,6 @@ const taskSchema = new mongoose.Schema({
   collection: 'tasks'
 });
 
-// Index pour améliorer les performances de recherche
 taskSchema.index({ statut: 1 });
 taskSchema.index({ priorite: 1 });
 taskSchema.index({ categorie: 1 });
@@ -198,22 +199,18 @@ taskSchema.index({ proprietaire: 1 });
 taskSchema.index({ visibilite: 1 });
 taskSchema.index({ proprietaire: 1, visibilite: 1 }); // Index composé pour requêtes fréquentes
 
-// Index de recherche textuelle
 taskSchema.index({ titre: 'text', description: 'text' });
 
-// Méthode virtuelle pour calculer le nombre de sous-tâches terminées
 taskSchema.virtual('sousTachesTerminees').get(function() {
   if (!this.sousTaches || this.sousTaches.length === 0) return 0;
   return this.sousTaches.filter(st => st.statut === 'terminée').length;
 });
 
-// Méthode virtuelle pour le pourcentage de progression
 taskSchema.virtual('progression').get(function() {
   if (!this.sousTaches || this.sousTaches.length === 0) return 0;
   return Math.round((this.sousTachesTerminees / this.sousTaches.length) * 100);
 });
 
-// Méthode pour vérifier si la tâche est en retard
 taskSchema.virtual('enRetard').get(function() {
   if (!this.echeance || this.statut === 'terminée' || this.statut === 'annulée') {
     return false;
@@ -221,28 +218,21 @@ taskSchema.virtual('enRetard').get(function() {
   return new Date() > this.echeance;
 });
 
-// Middleware pre-save pour enregistrer l'historique des modifications
-taskSchema.pre('save', function(next) {
-  if (!this.isNew && this.isModified()) {
-    // Détecter les champs modifiés
-    const modifiedPaths = this.modifiedPaths();
-
-    modifiedPaths.forEach(path => {
-      // Ignorer les champs système
-      if (['updatedAt', 'historiqueModifications'].includes(path)) return;
-
-      // Ajouter à l'historique
-      if (!this.historiqueModifications) {
-        this.historiqueModifications = [];
-      }
-
-      // Note: this.get() retourne la nouvelle valeur
-      // Pour obtenir l'ancienne valeur, on utiliserait un plugin ou un middleware plus complexe
-      // Pour simplifier, on enregistre juste le changement
-    });
+// Méthode d'instance pour ajouter une entrée à l'historique
+taskSchema.methods.ajouterHistorique = function(champModifie, ancienneValeur, nouvelleValeur, modifieParId, modifieParNom) {
+  if (!this.historiqueModifications) {
+    this.historiqueModifications = [];
   }
-  next();
-});
+
+  this.historiqueModifications.push({
+    champModifie,
+    ancienneValeur,
+    nouvelleValeur,
+    modifiePar: modifieParId,
+    modifieParNom,
+    date: new Date()
+  });
+};
 
 // Méthode d'instance pour ajouter un commentaire
 taskSchema.methods.ajouterCommentaire = function(auteurId, auteurNom, contenu) {
@@ -267,7 +257,6 @@ taskSchema.methods.ajouterSousTache = function(titre, echeance) {
   return this.save();
 };
 
-// Options pour inclure les champs virtuels lors de la conversion en JSON
 taskSchema.set('toJSON', {
   virtuals: true,
   transform: function(doc, ret) {

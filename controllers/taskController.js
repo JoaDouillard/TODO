@@ -1,15 +1,9 @@
 const Task = require('../models/Task');
 const Category = require('../models/Category');
 
-// @desc    Récupérer toutes les tâches de l'utilisateur connecté
-// @route   GET /api/tasks
-// @access  Private
 exports.getAllTasks = async (req, res) => {
   try {
-    // Filtre par propriétaire (utilisateur connecté)
     const filter = { proprietaire: req.userId };
-
-    // Filtres additionnels
     if (req.query.statut) filter.statut = req.query.statut;
     if (req.query.priorite) filter.priorite = req.query.priorite;
     if (req.query.categorie) filter.categorie = req.query.categorie;
@@ -67,9 +61,6 @@ exports.getAllTasks = async (req, res) => {
   }
 };
 
-// @desc    Récupérer toutes les tâches publiques
-// @route   GET /api/tasks/public
-// @access  Public (pas besoin de token)
 exports.getPublicTasks = async (req, res) => {
   try {
     // Filtre : seulement les tâches publiques
@@ -127,9 +118,6 @@ exports.getPublicTasks = async (req, res) => {
   }
 };
 
-// @desc    Récupérer une tâche par ID
-// @route   GET /api/tasks/:id
-// @access  Public (mais limité selon visibilité)
 exports.getTaskById = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id).populate('proprietaire', 'username email');
@@ -176,28 +164,20 @@ exports.getTaskById = async (req, res) => {
   }
 };
 
-// @desc    Créer une nouvelle tâche
-// @route   POST /api/tasks
-// @access  Private
 exports.createTask = async (req, res) => {
   try {
-    // Ajouter automatiquement le propriétaire (depuis le token)
     const taskData = {
       ...req.body,
       proprietaire: req.userId,
-      // Garder visibilite si fourni, sinon défaut 'privée' du modèle
     };
 
-    // Créer la tâche
     const task = new Task(taskData);
     await task.save();
 
-    // Gérer la catégorie
     if (task.categorie) {
       await Category.incrementCount(task.categorie);
     }
 
-    // Populate le propriétaire avant de renvoyer
     await task.populate('proprietaire', 'username email');
 
     res.status(201).json({
@@ -225,12 +205,9 @@ exports.createTask = async (req, res) => {
   }
 };
 
-// @desc    Mettre à jour une tâche
-// @route   PUT /api/tasks/:id
-// @access  Private (propriétaire uniquement)
 exports.updateTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('proprietaire', 'username');
 
     if (!task) {
       return res.status(404).json({
@@ -240,7 +217,7 @@ exports.updateTask = async (req, res) => {
     }
 
     // Vérifier que l'utilisateur est le propriétaire
-    if (task.proprietaire.toString() !== req.userId.toString()) {
+    if (task.proprietaire._id.toString() !== req.userId.toString()) {
       return res.status(403).json({
         success: false,
         error: 'Accès refusé. Vous n\'êtes pas le propriétaire de cette tâche.'
@@ -263,19 +240,133 @@ exports.updateTask = async (req, res) => {
     // Empêcher la modification du propriétaire
     delete req.body.proprietaire;
 
-    // Mettre à jour la tâche
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
+    // Enregistrer l'historique pour chaque champ modifié
+    const champsATracker = ['titre', 'description', 'statut', 'priorite', 'echeance', 'visibilite', 'categorie'];
+    const username = task.proprietaire.username;
+
+    champsATracker.forEach(champ => {
+      if (req.body.hasOwnProperty(champ) && req.body[champ] !== task[champ]) {
+        const ancienneValeur = task[champ];
+        const nouvelleValeur = req.body[champ];
+
+        task.ajouterHistorique(champ, ancienneValeur, nouvelleValeur, req.userId, username);
       }
-    ).populate('proprietaire', 'username email');
+    });
+
+    // Tracker les changements d'étiquettes
+    if (req.body.hasOwnProperty('etiquettes')) {
+      const oldTags = task.etiquettes || [];
+      const newTags = req.body.etiquettes || [];
+
+      const oldTagsStr = JSON.stringify(oldTags.sort());
+      const newTagsStr = JSON.stringify(newTags.sort());
+
+      if (oldTagsStr !== newTagsStr) {
+        task.ajouterHistorique('etiquettes', oldTags, newTags, req.userId, username);
+      }
+    }
+
+    // Tracker les changements de sous-tâches
+    if (req.body.hasOwnProperty('sousTaches')) {
+      const oldSubtasks = task.sousTaches || [];
+      const newSubtasks = req.body.sousTaches || [];
+
+      // Détecter les ajouts
+      newSubtasks.forEach(newSub => {
+        const existingSubtask = oldSubtasks.find(oldSub =>
+          oldSub._id && newSub._id && oldSub._id.toString() === newSub._id.toString()
+        );
+
+        if (!existingSubtask && newSub.titre) {
+          const echeanceInfo = newSub.echeance ? ` (Échéance: ${new Date(newSub.echeance).toLocaleDateString('fr-FR')})` : '';
+          task.ajouterHistorique('sousTaches', null, `Ajout: ${newSub.titre}${echeanceInfo}`, req.userId, username);
+        } else if (existingSubtask) {
+          const modifications = [];
+
+          // Vérifier les modifications du titre
+          if (existingSubtask.titre !== newSub.titre) {
+            modifications.push({
+              type: 'titre',
+              old: existingSubtask.titre,
+              new: newSub.titre
+            });
+          }
+
+          // Vérifier les modifications du statut
+          if (existingSubtask.statut !== newSub.statut) {
+            modifications.push({
+              type: 'statut',
+              old: existingSubtask.statut,
+              new: newSub.statut
+            });
+          }
+
+          // Vérifier les modifications de l'échéance
+          const oldEcheance = existingSubtask.echeance ? new Date(existingSubtask.echeance).toISOString().split('T')[0] : null;
+          const newEcheance = newSub.echeance ? new Date(newSub.echeance).toISOString().split('T')[0] : null;
+
+          if (oldEcheance !== newEcheance) {
+            modifications.push({
+              type: 'echeance',
+              old: oldEcheance,
+              new: newEcheance
+            });
+          }
+
+          // Enregistrer TOUTES les modifications dans un seul bloc
+          if (modifications.length > 0) {
+            const titre = newSub.titre || existingSubtask.titre;
+            const oldParts = [];
+            const newParts = [];
+
+            modifications.forEach(mod => {
+              if (mod.type === 'titre') {
+                oldParts.push(`<span class="font-semibold">Titre:</span> ${mod.old}`);
+                newParts.push(`<span class="font-semibold">Titre:</span> ${mod.new}`);
+              } else if (mod.type === 'statut') {
+                oldParts.push(`<span class="font-semibold">Statut:</span> ${mod.old}`);
+                newParts.push(`<span class="font-semibold">Statut:</span> ${mod.new}`);
+              } else if (mod.type === 'echeance') {
+                const oldDate = mod.old ? new Date(mod.old).toLocaleDateString('fr-FR') : 'Aucune';
+                const newDate = mod.new ? new Date(mod.new).toLocaleDateString('fr-FR') : 'Aucune';
+                oldParts.push(`<span class="font-semibold">Échéance:</span> ${oldDate}`);
+                newParts.push(`<span class="font-semibold">Échéance:</span> ${newDate}`);
+              }
+            });
+
+            const oldValue = `<div class="font-medium mb-2">${titre}</div>${oldParts.join('<br>')}`;
+            const newValue = `<div class="font-medium mb-2">${titre}</div>${newParts.join('<br>')}`;
+
+            task.ajouterHistorique('sousTaches', oldValue, newValue, req.userId, username);
+          }
+        }
+      });
+
+      // Détecter les suppressions
+      oldSubtasks.forEach(oldSub => {
+        const stillExists = newSubtasks.find(newSub =>
+          oldSub._id && newSub._id && oldSub._id.toString() === newSub._id.toString()
+        );
+
+        if (!stillExists && oldSub.titre) {
+          task.ajouterHistorique('sousTaches', `Suppression: ${oldSub.titre}`, null, req.userId, username);
+        }
+      });
+    }
+
+    // Mettre à jour les champs
+    Object.keys(req.body).forEach(key => {
+      if (key !== 'historiqueModifications') {
+        task[key] = req.body[key];
+      }
+    });
+
+    await task.save();
+    await task.populate('proprietaire', 'username email');
 
     res.status(200).json({
       success: true,
-      data: updatedTask,
+      data: task,
       message: 'Tâche mise à jour avec succès'
     });
 
@@ -305,9 +396,6 @@ exports.updateTask = async (req, res) => {
   }
 };
 
-// @desc    Changer la visibilité d'une tâche
-// @route   PATCH /api/tasks/:id/visibility
-// @access  Private (propriétaire uniquement)
 exports.toggleVisibility = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -327,7 +415,6 @@ exports.toggleVisibility = async (req, res) => {
       });
     }
 
-    // Toggle visibilité
     task.visibilite = task.visibilite === 'privée' ? 'publique' : 'privée';
     await task.save();
 
@@ -349,9 +436,6 @@ exports.toggleVisibility = async (req, res) => {
   }
 };
 
-// @desc    Supprimer une tâche
-// @route   DELETE /api/tasks/:id
-// @access  Private (propriétaire uniquement)
 exports.deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -402,13 +486,8 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
-// ========================================
 // GESTION DES COMMENTAIRES
-// ========================================
 
-// @desc    Ajouter un commentaire à une tâche
-// @route   POST /api/tasks/:id/comments
-// @access  Private
 exports.addComment = async (req, res) => {
   try {
     const { contenu } = req.body;
@@ -433,10 +512,9 @@ exports.addComment = async (req, res) => {
 
     // Vérifier les permissions : propriétaire OU tâche publique
     // Tout utilisateur connecté peut commenter ses propres tâches ET les tâches publiques
-    const isOwner = task.proprietaire.toString() === req.userId;
+    const isOwner = task.proprietaire.toString() === req.userId.toString();
     const isPublic = task.visibilite === 'publique';
 
-    // On autorise si c'est soit le propriétaire, soit une tâche publique
     if (!isOwner && !isPublic) {
       return res.status(403).json({
         success: false,
@@ -444,7 +522,6 @@ exports.addComment = async (req, res) => {
       });
     }
 
-    // Si on arrive ici, l'utilisateur a le droit de commenter
 
     // Récupérer les infos de l'utilisateur
     const User = require('../models/User');
@@ -489,9 +566,6 @@ exports.addComment = async (req, res) => {
   }
 };
 
-// @desc    Modifier un commentaire
-// @route   PUT /api/tasks/:id/comments/:commentId
-// @access  Private (auteur du commentaire uniquement)
 exports.updateComment = async (req, res) => {
   try {
     const { contenu } = req.body;
@@ -564,9 +638,6 @@ exports.updateComment = async (req, res) => {
   }
 };
 
-// @desc    Supprimer un commentaire (soft delete)
-// @route   DELETE /api/tasks/:id/comments/:commentId
-// @access  Private (auteur du commentaire ou admin)
 exports.deleteComment = async (req, res) => {
   try {
     const { id, commentId } = req.params;
@@ -605,7 +676,6 @@ exports.deleteComment = async (req, res) => {
       });
     }
 
-    // Soft delete
     comment.estSupprime = true;
     comment.dateSuppression = new Date();
     comment.suppressionPar = req.userId;
@@ -628,9 +698,6 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
-// @desc    Voter sur un commentaire (pouce bleu ou rouge)
-// @route   POST /api/tasks/:id/comments/:commentId/vote
-// @access  Private
 exports.voteComment = async (req, res) => {
   try {
     const { id, commentId } = req.params;
@@ -679,7 +746,6 @@ exports.voteComment = async (req, res) => {
     const hasVotedUp = comment.votesPositifs.some(userId => userId.toString() === req.userId.toString());
     const hasVotedDown = comment.votesNegatifs.some(userId => userId.toString() === req.userId.toString());
 
-    // Retirer l'utilisateur des deux listes
     comment.votesPositifs = comment.votesPositifs.filter(
       userId => userId.toString() !== req.userId.toString()
     );
@@ -687,8 +753,6 @@ exports.voteComment = async (req, res) => {
       userId => userId.toString() !== req.userId.toString()
     );
 
-    // Ajouter le vote UNIQUEMENT si l'utilisateur n'avait pas déjà voté pour ce même type
-    // Si l'utilisateur clique sur le même vote qu'il avait déjà donné, on l'annule (on ne l'ajoute pas)
     if (type === 'up' && !hasVotedUp) {
       comment.votesPositifs.push(req.userId);
     } else if (type === 'down' && !hasVotedDown) {
@@ -697,7 +761,6 @@ exports.voteComment = async (req, res) => {
 
     await task.save();
 
-    // Calculer le score
     const score = comment.votesPositifs.length - comment.votesNegatifs.length;
 
     res.status(200).json({

@@ -9,7 +9,6 @@ dotenv.config();
 // Connexion à MongoDB
 connectDB();
 
-// Initialiser Express
 const app = express();
 
 // Middlewares

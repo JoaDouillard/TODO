@@ -23,7 +23,6 @@ async function seedDatabase() {
     await User.deleteMany({});
     console.log('✅ Données existantes supprimées');
 
-    // Créer des utilisateurs de test
     console.log('👤 Création des utilisateurs...');
 
     const hashedPassword = await bcrypt.hash('password123', 10);

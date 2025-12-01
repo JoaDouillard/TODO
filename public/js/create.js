@@ -1,6 +1,3 @@
-// ========================================
-// PAGE DE CRÉATION - LOGIQUE
-// ========================================
 
 let createTemplate;
 let allCategories = [];
@@ -47,7 +44,6 @@ async function createPage() {
   });
 }
 
-// Charger les catégories depuis l'API
 async function loadCategories() {
   try {
     const response = await fetch('http://localhost:3000/api/categories');
@@ -92,7 +88,6 @@ function handleCategorieInput(event) {
   }
 }
 
-// Afficher les suggestions de catégories
 function displayCategoriesSuggestions(categories) {
   const suggestions = $('categoriesSuggestions');
 
@@ -119,7 +114,6 @@ function hideCategoriesSuggestions() {
   $('categoriesSuggestions').classList.add('hidden');
 }
 
-// Toggle visibilité (formulaire de création)
 function toggleVisibiliteCreate() {
   const visibiliteInput = $('visibilite');
   const toggleBtn = $('visibiliteToggleBtn');

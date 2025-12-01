@@ -1,14 +1,9 @@
-// ========================================
 // PAGES DE GESTION DES TÂCHES
-// ========================================
 
 let allMyTasks = [];
 let allPublicTasks = [];
 let myTasksTemplate, myTaskCardTemplate;
 
-// ========================================
-// PAGE "MES TÂCHES"
-// ========================================
 
 async function myTasksPage() {
   // Vérifier que l'utilisateur est connecté
@@ -125,9 +120,6 @@ function displayMyTasks(tasks) {
   container.innerHTML = tasksData.map(taskData => myTaskCardTemplate(taskData)).join('');
 }
 
-// ========================================
-// PAGE "TÂCHES PUBLIQUES"
-// ========================================
 
 async function publicTasksPage() {
   // Vérifier que l'utilisateur est connecté
@@ -243,9 +235,7 @@ function displayPublicTasks(tasks) {
   container.innerHTML = tasksData.map(taskData => myTaskCardTemplate(taskData)).join('');
 }
 
-// ========================================
 // FONCTIONS UTILITAIRES
-// ========================================
 
 function prepareTaskData(task, isOwner) {
   const completedSubtasks = task.sousTaches ? task.sousTaches.filter(st => st.statut === 'terminée').length : 0;
@@ -339,9 +329,7 @@ function clearCategoryFilter(mode) {
   }
 }
 
-// ========================================
 // FONCTION DE TOGGLE VISIBILITÉ
-// ========================================
 
 async function toggleTaskVisibility(taskId) {
   try {
@@ -370,9 +358,7 @@ async function toggleTaskVisibility(taskId) {
   }
 }
 
-// ========================================
 // FONCTION DE SUPPRESSION
-// ========================================
 
 async function deleteTask(taskId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {

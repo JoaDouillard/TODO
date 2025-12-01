@@ -142,7 +142,6 @@ exports.updateUser = async (req, res) => {
     if (prenom) user.prenom = prenom;
     if (role) user.role = role;
 
-    // Si un nouveau mot de passe est fourni, le hasher
     if (password) {
       user.password = await bcrypt.hash(password, 10);
     }
@@ -168,7 +167,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// Supprimer un utilisateur (ADMIN uniquement)
 exports.deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;

@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Schéma pour les catégories
 const categorySchema = new mongoose.Schema({
   nom: {
     type: String,
@@ -18,7 +17,6 @@ const categorySchema = new mongoose.Schema({
   collection: 'categories'
 });
 
-// Index pour améliorer les performances
 categorySchema.index({ nom: 1 }, { unique: true });
 categorySchema.index({ count: -1 });
 
@@ -75,7 +73,6 @@ categorySchema.statics.syncWithTasks = async function(Task) {
   // Supprimer toutes les catégories existantes
   await this.deleteMany({});
 
-  // Créer les nouvelles catégories
   if (categoryCounts.length > 0) {
     const categories = categoryCounts.map(cat => ({
       nom: cat._id,

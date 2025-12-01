@@ -1,11 +1,8 @@
-// ========================================
 // UTILITAIRES COMMUNS
-// ========================================
 
 // Configuration de l'API
 const API_URL = 'http://localhost:3000/api/tasks';
 
-// Récupérer un élément par ID
 function $(id) {
   return document.getElementById(id);
 }
@@ -29,7 +26,6 @@ function formatDate(dateString) {
   });
 }
 
-// Afficher une notification
 function showNotification(message, type = 'info') {
   const colors = {
     success: 'bg-green-500',
