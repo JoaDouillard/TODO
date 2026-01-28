@@ -30,6 +30,8 @@ function attachEventListeners() {
   $('filterPriorite').addEventListener('change', applyFilters);
   $('searchQuery').addEventListener('input', applyFilters);
   $('searchCategorie').addEventListener('input', applyFilters);
+  $('filterEcheanceFrom').addEventListener('change', applyFilters);
+  $('filterEcheanceTo').addEventListener('change', applyFilters);
 }
 
 async function loadTasks() {
@@ -105,10 +107,31 @@ function applyFilters() {
   const selectedPriority = $('filterPriorite').value;
   const searchQuery = $('searchQuery').value.toLowerCase();
   const searchCategorie = $('searchCategorie').value.toLowerCase();
+  const echeanceFromValue = $('filterEcheanceFrom').value;
+  const echeanceToValue = $('filterEcheanceTo').value;
 
   const filteredTasks = allTasks.filter(task => {
     if (selectedStatus && task.statut !== selectedStatus) return false;
     if (selectedPriority && task.priorite !== selectedPriority) return false;
+
+    // Filtre par plage d'échéance - SEULEMENT si un filtre de date est sélectionné
+    if (echeanceFromValue || echeanceToValue) {
+      // Si un filtre est actif, exclure les tâches sans échéance
+      if (!task.echeance) return false;
+      
+      // Extraire juste la date (YYYY-MM-DD) du timestamp echeance
+      const taskDateStr = new Date(task.echeance).toISOString().split('T')[0];
+      
+      // Comparer avec la date "de"
+      if (echeanceFromValue && taskDateStr < echeanceFromValue) {
+        return false;
+      }
+      
+      // Comparer avec la date "à"
+      if (echeanceToValue && taskDateStr > echeanceToValue) {
+        return false;
+      }
+    }
 
     // Filtre par catégorie
     if (searchCategorie) {
@@ -262,7 +285,7 @@ async function loadPublicTasksForVisitor() {
     console.error('Erreur:', error);
     $('tasksList').innerHTML = `
       <div class="col-span-full text-center py-12">
-        <p class="text-red-500 text-xl mb-4">❌ Erreur lors du chargement</p>
+        <p class="text-red-500 text-xl mb-4"> Erreur lors du chargement</p>
         <p class="text-gray-600">${escapeHTML(error.message)}</p>
       </div>
     `;

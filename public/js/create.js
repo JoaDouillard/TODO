@@ -22,6 +22,14 @@ async function createPage() {
     $('auteurEmail').value = currentUser.email || '';
   }
 
+  // Définir la date minimum pour l'échéance (aujourd'hui)
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const minDate = `${year}-${month}-${day}`;
+  $('echeance').setAttribute('min', minDate);
+
   // Attacher les événements
   $('createTaskForm').addEventListener('submit', handleCreateTaskSubmit);
   $('categorie').addEventListener('input', handleCategorieInput);
@@ -151,7 +159,17 @@ async function handleCreateTaskSubmit(event) {
   // Ajouter l'échéance si renseignée
   const echeanceValue = $('echeance').value;
   if (echeanceValue) {
-    taskData.echeance = new Date(echeanceValue).toISOString();
+    // Valider que la date n'est pas dans le passé
+    const selectedDate = new Date(echeanceValue);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      showNotification('Erreur : La date d\'échéance ne peut pas être dans le passé', 'error');
+      return;
+    }
+    
+    taskData.echeance = selectedDate.toISOString();
   }
 
   // Ajouter les étiquettes si renseignées

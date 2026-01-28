@@ -57,10 +57,10 @@
                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
           </div>
         </div>
-        <div class="flex flex-wrap gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Statut</label>
-            <select id="filterStatut" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <select id="filterStatut" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">Tous les statuts</option>
               <option value="à faire">À faire</option>
               <option value="en cours">En cours</option>
@@ -70,13 +70,21 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Priorité</label>
-            <select id="filterPriorite" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <select id="filterPriorite" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">Toutes les priorités</option>
               <option value="basse">Basse</option>
               <option value="moyenne">Moyenne</option>
               <option value="haute">Haute</option>
               <option value="critique">Critique</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"> Échéance du</label>
+            <input type="date" id="filterEcheanceFrom" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"> Échéance au</label>
+            <input type="date" id="filterEcheanceTo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           </div>
         </div>
         <!-- Liste des catégories disponibles -->
@@ -121,7 +129,7 @@
       </div>
       <div class="flex-1">
         <div class="flex justify-between items-center text-sm mb-2">
-          <span class="text-gray-500">📅 Échéance: {{echeance}}</span>
+          <span class="text-gray-500"> Échéance: {{echeance}}</span>
           <span class="{{prioBgClass}} {{prioTextClass}} {{prioBorderClass}} text-xs px-3 py-1.5 rounded-full font-bold border-2 shadow-sm">{{prioriteLabel}}</span>
         </div>
         <div class="text-xs text-gray-400 mb-3">
@@ -188,7 +196,7 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Échéance</label>
-            <input type="date" id="echeance" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <input type="date" id="echeance" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" min="">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Étiquettes (séparées par /)</label>

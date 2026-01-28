@@ -249,6 +249,7 @@ async function renderEditPage(task) {
               type="date"
               id="subtaskEcheanceEdit"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              min=""
             >
           </div>
           <div class="flex gap-3">
@@ -273,6 +274,14 @@ async function renderEditPage(task) {
 
   // Charger les catégories
   await loadCategoriesEdit();
+
+  // Définir la date minimum pour l'échéance (aujourd'hui)
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const minDate = `${year}-${month}-${day}`;
+  $('echeance').setAttribute('min', minDate);
 
   // Attacher les événements
   $('editTaskForm').addEventListener('submit', handleEditTask);
@@ -438,6 +447,14 @@ function showAddSubtaskModalEdit() {
   $('subtaskTitreEdit').value = '';
   $('subtaskEcheanceEdit').value = '';
 
+  // Définir la date minimum pour l'échéance (aujourd'hui)
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const minDate = `${year}-${month}-${day}`;
+  $('subtaskEcheanceEdit').setAttribute('min', minDate);
+
   // Attacher l'événement de soumission
   $('addSubtaskFormEdit').onsubmit = handleAddSubtaskEdit;
 }
@@ -457,7 +474,17 @@ function handleAddSubtaskEdit(event) {
 
   const echeanceValue = $('subtaskEcheanceEdit').value;
   if (echeanceValue) {
-    newSubtask.echeance = new Date(echeanceValue).toISOString();
+    // Valider que la date n'est pas dans le passé
+    const selectedDate = new Date(echeanceValue);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      showNotification('Erreur : La date d\'échéance ne peut pas être dans le passé', 'error');
+      return;
+    }
+    
+    newSubtask.echeance = selectedDate.toISOString();
   }
 
   // Ajouter la sous-tâche au tableau
@@ -518,7 +545,17 @@ async function handleEditTask(event) {
   // Ajouter l'échéance si renseignée
   const echeanceValue = $('echeance').value;
   if (echeanceValue) {
-    updatedData.echeance = new Date(echeanceValue).toISOString();
+    // Valider que la date n'est pas dans le passé
+    const selectedDate = new Date(echeanceValue);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      showNotification('Erreur : La date d\'échéance ne peut pas être dans le passé', 'error');
+      return;
+    }
+    
+    updatedData.echeance = selectedDate.toISOString();
   }
 
   // Ajouter les étiquettes si renseignées
